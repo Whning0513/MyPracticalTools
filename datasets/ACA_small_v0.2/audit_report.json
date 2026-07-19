@@ -1,0 +1,75 @@
+{
+  "accepted": true,
+  "blind_gate": {
+    "candidate_gate_records": 1140,
+    "candidate_statuses": {
+      "easily_hacked": 11,
+      "not_easily_hacked": 1129
+    },
+    "coverage_complete": true,
+    "final_countercase_total": 236,
+    "final_gate_records": 1100,
+    "final_statuses": {
+      "not_easily_hacked": 1100
+    },
+    "final_usable_probe_total": 838
+  },
+  "counts": {
+    "test": {
+      "languages": {
+        "C++": 60,
+        "Python": 40
+      },
+      "problems": 10,
+      "submissions": 100
+    },
+    "train": {
+      "languages": {
+        "C++": 600,
+        "Python": 400
+      },
+      "problems": 91,
+      "submissions": 1000
+    }
+  },
+  "dataset_version": "v0.2",
+  "source_hash": {
+    "cross_split_overlap": [],
+    "missing": 0,
+    "test_unique": 100,
+    "train_unique": 1000
+  },
+  "split_isolation": {
+    "code_overlap": [],
+    "problem_overlap": [],
+    "singleton_test_problems": [],
+    "singleton_test_users": [],
+    "singleton_train_problems": [],
+    "singleton_train_users": [],
+    "user_overlap": []
+  },
+  "step1_replay": {
+    "drift_cases": 0,
+    "missing_replay_fields": 0,
+    "observation_statuses": {
+      "captured": 12515,
+      "no_output": 479
+    },
+    "original_verdict_preserved": true,
+    "replayed_cases": 12994,
+    "replayed_submissions": 660
+  },
+  "step2_certification": {
+    "asset_closure_missing": 0,
+    "fixed_ref_verified": 101,
+    "selected_problem_count": 101,
+    "validator_accepted": 101
+  },
+  "stream_sha256": {
+    "blind_gate_metadata.jsonl.zst": "sha256:8df08a15aef66d999af2080e2e7133797772aff2b94294791ddd5e5c9b429d97",
+    "test/problems.jsonl.zst": "sha256:4626aaf9ff70958ae5298734fa28dc228d394f3bf3d4c7e5527607689215b57d",
+    "test/submissions.jsonl.zst": "sha256:1563b67cfa7a847267c91a10f8adfc59cf1caedc3e2637b3d3c132ff2ebf1917",
+    "train/problems.jsonl.zst": "sha256:644b3a4cbec5bc36a3fa0fb5e012c9c1cef1a5f8ee67535ac03a566a825d17c4",
+    "train/submissions.jsonl.zst": "sha256:1a03903c52ed0498787849aec0712bca35cc8261538f246e240e43c4b955e7eb"
+  }
+}
