@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dashboard:
+    name: Dashboard / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install test dependencies
+        run: python -m pip install -e '.[test]'
+      - name: Run tests
+        run: python -m pytest -q
+
+  watchdog-downloader:
+    name: watchdogDownloader / Bash
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check syntax
+        run: bash -n watchdogDownloader/wdd
+      - name: Check command entry point
+        run: watchdogDownloader/wdd --version
