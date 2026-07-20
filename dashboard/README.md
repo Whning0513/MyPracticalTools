@@ -131,3 +131,7 @@ whose `progress.json` contains `{"total_progress": "37/100"}`.
   to recent tqdm `seconds/it` values.
 - GPUs above `external_gpu_threshold_mb` without an owned job are displayed as
   `external`, never as free.
+
+## License
+
+Practical Run Dashboard is licensed under the [MIT License](LICENSE).

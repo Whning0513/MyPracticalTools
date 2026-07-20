@@ -161,3 +161,7 @@ wdd init \
   /srv/codecontestplus-files \
   ./watchdogDownloader/examples/ccplus_1x.manifest.tsv
 ```
+
+## License
+
+watchdogDownloader is licensed under the [MIT License](LICENSE).

@@ -87,6 +87,14 @@ watchdogDownloader/wdd --version
 
 CI runs both checks for pull requests and changes to `main`.
 
+## License
+
+The original software components, including Practical Run Dashboard,
+watchdogDownloader, and the user-workstyle skill, are licensed under the
+[MIT License](LICENSE). The dataset package, data-design materials, and any
+third-party content are excluded unless a separate license is identified. See
+[`LICENSE_SCOPE.md`](LICENSE_SCOPE.md) for the exact path-level scope.
+
 ## Contributing
 
 Focused bug reports and pull requests are welcome. Include a minimal
