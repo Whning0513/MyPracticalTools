@@ -52,9 +52,8 @@ Create a tab-separated manifest, initialize a download project, and start it:
 
 ```bash
 wdd init /srv/download-state /srv/files ./manifest.tsv
-wdd start /srv/download-state
-wdd watchdog-start /srv/download-state
-wdd status /srv/download-state
+wdd resume /srv/download-state
+wdd tui /srv/download-state
 ```
 
 See the [watchdogDownloader documentation](watchdogDownloader/README.md) for
@@ -78,11 +77,12 @@ python -m pip install -e './dashboard[test]'
 python -m pytest dashboard/tests -q
 ```
 
-Check the Bash script syntax:
+Check the Bash script and its interruption/resume integration tests:
 
 ```bash
 bash -n watchdogDownloader/wdd
 watchdogDownloader/wdd --version
+python -m unittest discover -s watchdogDownloader/tests -v
 ```
 
 CI runs both checks for pull requests and changes to `main`.

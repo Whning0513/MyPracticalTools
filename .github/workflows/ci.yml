@@ -38,3 +38,5 @@ jobs:
         run: bash -n watchdogDownloader/wdd
       - name: Check command entry point
         run: watchdogDownloader/wdd --version
+      - name: Test interruption, resume, and TUI snapshot
+        run: python -m unittest discover -s watchdogDownloader/tests -v

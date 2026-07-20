@@ -14,7 +14,7 @@
 
 set -uo pipefail
 
-VERSION="0.1.0"
+VERSION="0.2.0"
 
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 
@@ -38,7 +38,11 @@ Usage:
   wdd watchdog-start <project-dir>
   wdd watchdog <project-dir>
   wdd status <project-dir> [sample-seconds]
+  wdd tui <project-dir> [refresh-seconds] [--once]
   wdd verify <project-dir>
+  wdd pause <project-dir>
+  wdd resume <project-dir>
+  wdd reset-file <project-dir> <relative-output-path>
   wdd stop <project-dir>
   wdd ps <project-dir>
 
@@ -94,6 +98,8 @@ load_config() {
   WATCHDOG_LOG="${WATCHDOG_LOG:-$STATE_DIR/watchdog.log}"
   RUN_LOCK="${RUN_LOCK:-$STATE_DIR/run.lock}"
   CLAIM_DIR="${CLAIM_DIR:-$STATE_DIR/claims}"
+  FILE_STATE_DIR="${FILE_STATE_DIR:-$STATE_DIR/files}"
+  PAUSED_FILE="${PAUSED_FILE:-$STATE_DIR/paused}"
 
   JOBS="${JOBS:-1}"
   LOW_SPEED_LIMIT="${LOW_SPEED_LIMIT:-524288}"
@@ -104,7 +110,8 @@ load_config() {
   STALL_LIMIT="${STALL_LIMIT:-600}"
   BACKOFF_SECONDS="${BACKOFF_SECONDS:-10}"
 
-  mkdir -p "$OUT_DIR" "$STATE_DIR" "$CLAIM_DIR"
+  mkdir -p "$OUT_DIR" "$STATE_DIR" "$CLAIM_DIR" "$FILE_STATE_DIR"
+  require_command sha256sum
 }
 
 init_project() {
@@ -165,6 +172,9 @@ manifest_each() {
     [[ -n "${file:-}" ]] || die "bad manifest line, missing file: $line"
     expected="${expected:-0}"
     sha="${sha:-}"
+    [[ "$file" != /* && "$file" != ".." && "$file" != ../* && "$file" != */../* && "$file" != */.. ]] \
+      || die "manifest output path must stay below OUT_DIR: $file"
+    [[ "$expected" =~ ^[0-9]+$ ]] || die "expected-bytes must be a non-negative integer: $line"
 
     "$callback" "$url" "$file" "$expected" "$sha"
   done < "$MANIFEST"
@@ -179,18 +189,64 @@ file_size() {
   fi
 }
 
-is_size_complete() {
-  local path="$1"
-  local expected="$2"
-  local current
-  current="$(file_size "$path")"
+state_path_for_file() {
+  local file="$1"
+  local key
+  key="$(printf '%s' "$file" | sha256sum | awk '{print $1}')"
+  printf '%s/%s.state\n' "$FILE_STATE_DIR" "$key"
+}
 
-  # expected=0 means unknown length. In that case only a present non-empty file
-  # can be treated as "probably done"; verify cannot prove completeness.
+file_state_value() {
+  local file="$1"
+  local field="$2"
+  local state
+  state="$(state_path_for_file "$file")"
+  [[ -f "$state" ]] || return 1
+  awk -F '\t' -v field="$field" '$1 == field {print substr($0, length($1) + 2); exit}' "$state"
+}
+
+write_file_state() {
+  local file="$1"
+  local status="$2"
+  local current="$3"
+  local expected="$4"
+  local attempts="$5"
+  local resume_from="$6"
+  local exit_code="$7"
+  local message="$8"
+  local state temporary
+  state="$(state_path_for_file "$file")"
+  temporary="$state.tmp.$$"
+  message="${message//$'\n'/ }"
+  message="${message//$'\t'/ }"
+  {
+    printf 'status\t%s\n' "$status"
+    printf 'file\t%s\n' "$file"
+    printf 'current\t%s\n' "$current"
+    printf 'expected\t%s\n' "$expected"
+    printf 'attempts\t%s\n' "$attempts"
+    printf 'resume_from\t%s\n' "$resume_from"
+    printf 'exit_code\t%s\n' "$exit_code"
+    printf 'updated_epoch\t%s\n' "$(date +%s)"
+    printf 'updated_at\t%s\n' "$(date -Is)"
+    printf 'message\t%s\n' "$message"
+  } > "$temporary"
+  mv -f "$temporary" "$state"
+}
+
+entry_is_complete() {
+  local file="$1"
+  local expected="$2"
+  local path="$OUT_DIR/$file"
+  local current status
+  [[ -f "$path" ]] || return 1
+  status="$(file_state_value "$file" status 2>/dev/null || true)"
+  [[ "$status" == "complete" ]] || return 1
+  current="$(file_size "$path")"
   if [[ "$expected" -gt 0 ]]; then
-    [[ "$current" -ge "$expected" ]]
+    [[ "$current" -eq "$expected" ]]
   else
-    [[ "$current" -gt 0 ]]
+    return 0
   fi
 }
 
@@ -210,14 +266,21 @@ downloaded_bytes_callback() {
   fi
 
   WDD_DONE=$((WDD_DONE + current))
-  WDD_TOTAL=$((WDD_TOTAL + expected))
+  if [[ "$expected" -gt 0 ]]; then
+    WDD_TOTAL=$((WDD_TOTAL + expected))
+    WDD_KNOWN_DONE=$((WDD_KNOWN_DONE + current))
+  else
+    WDD_UNKNOWN_COUNT=$((WDD_UNKNOWN_COUNT + 1))
+  fi
 }
 
 downloaded_bytes() {
   WDD_DONE=0
   WDD_TOTAL=0
+  WDD_KNOWN_DONE=0
+  WDD_UNKNOWN_COUNT=0
   manifest_each downloaded_bytes_callback
-  printf '%s %s\n' "$WDD_DONE" "$WDD_TOTAL"
+  printf '%s %s %s %s\n' "$WDD_DONE" "$WDD_TOTAL" "$WDD_KNOWN_DONE" "$WDD_UNKNOWN_COUNT"
 }
 
 all_size_complete_callback() {
@@ -225,7 +288,7 @@ all_size_complete_callback() {
   local file="$2"
   local expected="$3"
   local _sha="$4"
-  if ! is_size_complete "$OUT_DIR/$file" "$expected"; then
+  if ! entry_is_complete "$file" "$expected"; then
     WDD_ALL_COMPLETE=0
   fi
 }
@@ -234,6 +297,22 @@ all_size_complete() {
   WDD_ALL_COMPLETE=1
   manifest_each all_size_complete_callback
   [[ "$WDD_ALL_COMPLETE" -eq 1 ]]
+}
+
+failed_file_callback() {
+  local _url="$1"
+  local file="$2"
+  local _expected="$3"
+  local _sha="$4"
+  if [[ "$(file_state_value "$file" status 2>/dev/null || true)" == "failed" ]]; then
+    WDD_HAS_FAILED=1
+  fi
+}
+
+has_failed_files() {
+  WDD_HAS_FAILED=0
+  manifest_each failed_file_callback
+  [[ "$WDD_HAS_FAILED" -eq 1 ]]
 }
 
 active_pid_from_file() {
@@ -356,29 +435,69 @@ download_entry() {
   local expected="$3"
   local sha="$4"
   local path="$OUT_DIR/$file"
-  local current
+  local current attempts resume_from curl_status state_status
+
+  attempts="$(file_state_value "$file" attempts 2>/dev/null || echo 0)"
+  [[ "$attempts" =~ ^[0-9]+$ ]] || attempts=0
 
   while true; do
     current="$(file_size "$path")"
 
     if [[ "$expected" -gt 0 && "$current" -gt "$expected" ]]; then
       note "oversized file detected file=$file size=$current expected=$expected"
+      write_file_state "$file" "failed" "$current" "$expected" "$attempts" "$current" "2" "local file exceeds expected size"
       return 2
     fi
 
-    if is_size_complete "$path" "$expected"; then
+    state_status="$(file_state_value "$file" status 2>/dev/null || true)"
+    if entry_is_complete "$file" "$expected"; then
+      return 0
+    fi
+    if [[ "$state_status" == "failed" ]]; then
+      note "manual intervention required file=$file message=$(file_state_value "$file" message 2>/dev/null || true)"
+      return 4
+    fi
+
+    if [[ "$expected" -gt 0 && "$current" -eq "$expected" ]]; then
       if verify_sha256 "$path" "$sha"; then
         note "finished file=$file size=$(file_size "$path") expected=$expected"
+        write_file_state "$file" "complete" "$current" "$expected" "$attempts" "$current" "0" "verified"
         return 0
       fi
+      note "sha256 mismatch file=$file; leaving file in place for inspection"
+      write_file_state "$file" "failed" "$current" "$expected" "$attempts" "$current" "3" "sha256 mismatch"
+      return 3
+    fi
+
+    attempts=$((attempts + 1))
+    resume_from="$current"
+    write_file_state "$file" "downloading" "$current" "$expected" "$attempts" "$resume_from" "" "request in progress"
+    note "resume file=$file size=$current/$expected low_speed=${LOW_SPEED_LIMIT}Bps/${LOW_SPEED_TIME}s"
+    if curl_download_once "$url" "$path"; then
+      curl_status=0
+    else
+      curl_status=$?
+    fi
+    current="$(file_size "$path")"
+
+    if [[ "$curl_status" -eq 0 ]]; then
+      if [[ "$expected" -gt 0 && "$current" -ne "$expected" ]]; then
+        note "size mismatch after successful transfer file=$file size=$current expected=$expected"
+        write_file_state "$file" "failed" "$current" "$expected" "$attempts" "$resume_from" "4" "server completed at an unexpected size"
+        return 4
+      fi
+      if verify_sha256 "$path" "$sha"; then
+        write_file_state "$file" "complete" "$current" "$expected" "$attempts" "$resume_from" "0" "verified"
+        note "finished file=$file size=$current expected=$expected"
+        return 0
+      fi
+      write_file_state "$file" "failed" "$current" "$expected" "$attempts" "$resume_from" "3" "sha256 mismatch"
       note "sha256 mismatch file=$file; leaving file in place for inspection"
       return 3
     fi
 
-    note "resume file=$file size=$current/$expected low_speed=${LOW_SPEED_LIMIT}Bps/${LOW_SPEED_TIME}s"
-    if ! curl_download_once "$url" "$path"; then
-      sleep "$BACKOFF_SECONDS"
-    fi
+    write_file_state "$file" "retrying" "$current" "$expected" "$attempts" "$resume_from" "$curl_status" "curl failed; partial file retained"
+    sleep "$BACKOFF_SECONDS"
   done
 }
 
@@ -391,14 +510,20 @@ worker_try_entry_callback() {
   local claim
 
   [[ "$WDD_WORKER_DID_WORK" -eq 0 ]] || return 0
-  is_size_complete "$path" "$expected" && return 0
+  entry_is_complete "$file" "$expected" && return 0
 
   WDD_WORKER_SAW_INCOMPLETE=1
+  if [[ "$(file_state_value "$file" status 2>/dev/null || true)" == "failed" ]]; then
+    WDD_WORKER_SAW_FAILED=1
+    return 0
+  fi
   claim="$(claim_file "$file" || true)"
   [[ -n "$claim" ]] || return 0
 
   WDD_WORKER_DID_WORK=1
-  download_entry "$url" "$file" "$expected" "$sha"
+  if ! download_entry "$url" "$file" "$expected" "$sha"; then
+    WDD_WORKER_SAW_FAILED=1
+  fi
   release_claim "$claim"
 }
 
@@ -409,7 +534,13 @@ worker_loop() {
   while true; do
     WDD_WORKER_DID_WORK=0
     WDD_WORKER_SAW_INCOMPLETE=0
+    WDD_WORKER_SAW_FAILED=0
     manifest_each worker_try_entry_callback
+
+    if [[ "$WDD_WORKER_SAW_FAILED" -ne 0 ]]; then
+      note "worker stopped because a file requires manual intervention id=$worker_id"
+      return 1
+    fi
 
     if [[ "$WDD_WORKER_SAW_INCOMPLETE" -eq 0 ]]; then
       note "worker complete id=$worker_id"
@@ -463,6 +594,8 @@ start_downloader() {
     die "downloader already running pid=$(active_pid_from_file "$PIDFILE")"
   fi
 
+  rm -f "$PAUSED_FILE"
+
   cd "$PROJECT_DIR" || exit 1
   setsid bash "$SELF" run "$PROJECT_DIR" >> "$LOG" 2>&1 &
   echo "$!" > "$PIDFILE"
@@ -491,12 +624,21 @@ watchdog_loop() {
   last_progress_ts="$(date +%s)"
 
   while true; do
+    if [[ -f "$PAUSED_FILE" ]]; then
+      note "paused by user"
+      sleep "$CHECK_INTERVAL"
+      continue
+    fi
     now="$(date +%s)"
     read -r current total < <(downloaded_bytes)
 
-    if [[ "$total" -gt 0 && "$current" -ge "$total" ]] && all_size_complete; then
+    if all_size_complete; then
       note "complete bytes=$current"
       exit 0
+    fi
+    if has_failed_files; then
+      note "terminal file failure detected; use reset-file after inspecting the failed entry"
+      exit 1
     fi
 
     if [[ "$current" -gt "$last_bytes" ]]; then
@@ -529,11 +671,16 @@ status_file_callback() {
   local expected="$3"
   local _sha="$4"
   local path="$OUT_DIR/$file"
-  local current status
+  local current status saved_status
   current="$(file_size "$path")"
+  saved_status="$(file_state_value "$file" status 2>/dev/null || true)"
 
-  if [[ "$expected" -gt 0 && "$current" -ge "$expected" ]]; then
+  if entry_is_complete "$file" "$expected"; then
     status="done"
+  elif [[ "$saved_status" == "failed" ]]; then
+    status="failed"
+  elif [[ "$saved_status" == "downloading" || "$saved_status" == "retrying" ]]; then
+    status="$saved_status"
   elif [[ "$current" -gt 0 ]]; then
     status="partial"
   else
@@ -581,10 +728,10 @@ print_status() {
 
   print_processes
 
-  local before after total delta rate remaining
-  read -r before total < <(downloaded_bytes)
+  local before after total before_known after_known unknown_count delta rate remaining
+  read -r before total before_known unknown_count < <(downloaded_bytes)
   sleep "$interval"
-  read -r after total < <(downloaded_bytes)
+  read -r after total after_known unknown_count < <(downloaded_bytes)
 
   delta=$((after - before))
   if [[ "$interval" -gt 0 ]]; then
@@ -592,11 +739,12 @@ print_status() {
   else
     rate=0
   fi
-  remaining=$((total - after))
+  remaining=$((total - after_known))
+  [[ "$remaining" -lt 0 ]] && remaining=0
 
   echo "[$(date -Is)] aggregate"
-  echo "done=$after total=$total remaining=$remaining"
-  awk -v after="$after" -v total="$total" -v delta="$delta" -v rate="$rate" -v remaining="$remaining" '
+  echo "done=$after_known total=$total remaining=$remaining unknown_size_files=$unknown_count"
+  awk -v after="$after_known" -v total="$total" -v delta="$delta" -v rate="$rate" -v remaining="$remaining" '
     BEGIN {
       progress = (total > 0) ? after / total * 100 : 0
       printf("progress=%.2f%% delta=%dB rate=%.2f MB/s\n", progress, delta, rate / 1000000)
@@ -612,6 +760,319 @@ print_status() {
   echo "[$(date -Is)] files"
   manifest_each status_file_callback
   print_writers
+}
+
+human_bytes() {
+  awk -v value="${1:-0}" 'BEGIN {
+    split("B KiB MiB GiB TiB", units, " "); unit_index = 1
+    while (value >= 1024 && unit_index < 5) { value /= 1024; unit_index++ }
+    if (unit_index == 1) printf "%d %s", value, units[unit_index]
+    else printf "%.1f %s", value, units[unit_index]
+  }'
+}
+
+human_duration() {
+  local seconds="${1:-0}"
+  if [[ ! "$seconds" =~ ^[0-9]+$ || "$seconds" -le 0 ]]; then
+    printf '%s' '--'
+  elif [[ "$seconds" -ge 86400 ]]; then
+    printf '%dd %02dh' "$((seconds / 86400))" "$(((seconds % 86400) / 3600))"
+  elif [[ "$seconds" -ge 3600 ]]; then
+    printf '%dh %02dm' "$((seconds / 3600))" "$(((seconds % 3600) / 60))"
+  elif [[ "$seconds" -ge 60 ]]; then
+    printf '%dm %02ds' "$((seconds / 60))" "$((seconds % 60))"
+  else
+    printf '%ds' "$seconds"
+  fi
+}
+
+repeat_character() {
+  local character="$1"
+  local count="$2"
+  local value
+  printf -v value '%*s' "$count" ''
+  printf '%s' "${value// /$character}"
+}
+
+tui_row() {
+  local text="$1"
+  local color="${2:-}"
+  local content_width=$((WDD_TUI_WIDTH - 4))
+  if [[ "${#text}" -gt "$content_width" ]]; then
+    text="${text:0:$((content_width - 1))}…"
+  fi
+  printf '│ %s%-*s%s │\n' "$color" "$content_width" "$text" "$WDD_TUI_RESET"
+}
+
+tui_open_panel() {
+  local title="$1"
+  printf '╭%s╮\n' "$(repeat_character '─' $((WDD_TUI_WIDTH - 2)))"
+  tui_row "$title" "$WDD_TUI_BOLD$WDD_TUI_CYAN"
+}
+
+tui_close_panel() {
+  printf '╰%s╯\n' "$(repeat_character '─' $((WDD_TUI_WIDTH - 2)))"
+}
+
+tui_progress_bar() {
+  local percent="$1"
+  local width="$2"
+  local filled=$((percent * width / 100))
+  [[ "$filled" -lt 0 ]] && filled=0
+  [[ "$filled" -gt "$width" ]] && filled="$width"
+  printf '%s%s' "$(repeat_character '█' "$filled")" "$(repeat_character '░' $((width - filled)))"
+}
+
+tui_file_status() {
+  local file="$1"
+  local expected="$2"
+  local saved current
+  current="$(file_size "$OUT_DIR/$file")"
+  saved="$(file_state_value "$file" status 2>/dev/null || true)"
+  if entry_is_complete "$file" "$expected"; then
+    WDD_TUI_FILE_STATUS="complete"
+  elif [[ "$saved" == "failed" ]]; then
+    WDD_TUI_FILE_STATUS="failed"
+  elif [[ "$saved" == "paused" ]]; then
+    WDD_TUI_FILE_STATUS="paused"
+  elif [[ "$saved" == "downloading" || "$saved" == "retrying" ]]; then
+    if [[ "$WDD_TUI_DOWNLOADER_ACTIVE" -eq 1 ]]; then
+      WDD_TUI_FILE_STATUS="$saved"
+    else
+      WDD_TUI_FILE_STATUS="interrupted"
+    fi
+  elif [[ "$current" -gt 0 ]]; then
+    WDD_TUI_FILE_STATUS="partial"
+  else
+    WDD_TUI_FILE_STATUS="pending"
+  fi
+}
+
+tui_count_callback() {
+  local _url="$1"
+  local file="$2"
+  local expected="$3"
+  local _sha="$4"
+  tui_file_status "$file" "$expected"
+  WDD_TUI_FILE_COUNT=$((WDD_TUI_FILE_COUNT + 1))
+  case "$WDD_TUI_FILE_STATUS" in
+    complete) WDD_TUI_COMPLETE_COUNT=$((WDD_TUI_COMPLETE_COUNT + 1)) ;;
+    failed) WDD_TUI_FAILED_COUNT=$((WDD_TUI_FAILED_COUNT + 1)) ;;
+    downloading|retrying) WDD_TUI_ACTIVE_COUNT=$((WDD_TUI_ACTIVE_COUNT + 1)) ;;
+    partial|paused|interrupted) WDD_TUI_PARTIAL_COUNT=$((WDD_TUI_PARTIAL_COUNT + 1)) ;;
+  esac
+}
+
+tui_file_row_callback() {
+  local _url="$1"
+  local file="$2"
+  local expected="$3"
+  local _sha="$4"
+  [[ "$WDD_TUI_RENDERED_ROWS" -lt "$WDD_TUI_MAX_ROWS" ]] || return 0
+  local current attempts resume_from percent bar size_text row color name_width
+  current="$(file_size "$OUT_DIR/$file")"
+  attempts="$(file_state_value "$file" attempts 2>/dev/null || echo 0)"
+  resume_from="$(file_state_value "$file" resume_from 2>/dev/null || echo 0)"
+  tui_file_status "$file" "$expected"
+  if [[ "$expected" -gt 0 ]]; then
+    percent=$((current * 100 / expected))
+    [[ "$percent" -gt 100 ]] && percent=100
+    size_text="$(human_bytes "$current") / $(human_bytes "$expected")"
+  else
+    if [[ "$WDD_TUI_FILE_STATUS" == "complete" ]]; then percent=100; else percent=0; fi
+    size_text="$(human_bytes "$current") / unknown"
+  fi
+  case "$WDD_TUI_FILE_STATUS" in
+    complete) color="$WDD_TUI_GREEN" ;;
+    failed) color="$WDD_TUI_RED" ;;
+    downloading|retrying) color="$WDD_TUI_CYAN" ;;
+    paused|interrupted|partial) color="$WDD_TUI_YELLOW" ;;
+    *) color="$WDD_TUI_DIM" ;;
+  esac
+  if [[ "$WDD_TUI_WIDTH" -ge 110 ]]; then
+    name_width=$((WDD_TUI_WIDTH - 87))
+    bar="$(tui_progress_bar "$percent" 18)"
+    printf -v row "%-${name_width}.${name_width}s %-11s %6s%% %-18s %-21.21s %5s %-11.11s" \
+      "$file" "$WDD_TUI_FILE_STATUS" "$percent" "$bar" "$size_text" "$attempts" "$(human_bytes "$resume_from")"
+  else
+    name_width=$((WDD_TUI_WIDTH - 57))
+    [[ "$name_width" -lt 14 ]] && name_width=14
+    printf -v row "%-${name_width}.${name_width}s %-11s %6s%% %-21.21s %5s" \
+      "$file" "$WDD_TUI_FILE_STATUS" "$percent" "$size_text" "$attempts"
+  fi
+  tui_row "$row" "$color"
+  WDD_TUI_RENDERED_ROWS=$((WDD_TUI_RENDERED_ROWS + 1))
+}
+
+tui_render() {
+  load_config "$WDD_TUI_PROJECT"
+  local detected_width detected_height pid watchdog_pid state now elapsed done total known_done unknown_count
+  local delta rate remaining eta percent total_text
+  detected_width="$(tput cols 2>/dev/null || echo 100)"
+  detected_height="$(tput lines 2>/dev/null || echo 30)"
+  [[ "$detected_width" =~ ^[0-9]+$ ]] || detected_width=100
+  [[ "$detected_height" =~ ^[0-9]+$ ]] || detected_height=30
+  WDD_TUI_WIDTH="$detected_width"
+  [[ "$WDD_TUI_WIDTH" -lt 78 ]] && WDD_TUI_WIDTH=78
+  [[ "$WDD_TUI_WIDTH" -gt 150 ]] && WDD_TUI_WIDTH=150
+
+  pid="$(active_pid_from_file "$PIDFILE" || true)"
+  watchdog_pid="$(active_pid_from_file "$WATCHDOG_PIDFILE" || true)"
+  WDD_TUI_DOWNLOADER_ACTIVE=0
+  [[ -n "$pid" ]] && WDD_TUI_DOWNLOADER_ACTIVE=1
+  if all_size_complete; then
+    state="COMPLETE"
+  elif [[ -f "$PAUSED_FILE" ]]; then
+    state="PAUSED"
+  elif has_failed_files; then
+    state="FAILED"
+  elif [[ -n "$pid" ]]; then
+    state="RUNNING"
+  else
+    state="STOPPED"
+  fi
+
+  read -r done total known_done unknown_count < <(downloaded_bytes)
+  now="$(date +%s)"
+  elapsed=$((now - WDD_TUI_PREVIOUS_TIME))
+  [[ "$elapsed" -lt 1 ]] && elapsed=1
+  delta=$((done - WDD_TUI_PREVIOUS_BYTES))
+  [[ "$delta" -lt 0 ]] && delta=0
+  rate=$((delta / elapsed))
+  remaining=$((total - known_done))
+  [[ "$remaining" -lt 0 ]] && remaining=0
+  if [[ "$rate" -gt 0 ]]; then eta=$((remaining / rate)); else eta=0; fi
+  if [[ "$state" == "COMPLETE" ]]; then
+    percent=100
+  elif [[ "$total" -gt 0 ]]; then
+    percent=$((known_done * 100 / total))
+  else
+    percent=0
+  fi
+  [[ "$percent" -gt 100 ]] && percent=100
+  total_text="$(human_bytes "$known_done") / $(human_bytes "$total")"
+  if [[ "$unknown_count" -gt 0 ]]; then
+    total_text+=" + $unknown_count unknown"
+  fi
+
+  WDD_TUI_FILE_COUNT=0
+  WDD_TUI_COMPLETE_COUNT=0
+  WDD_TUI_FAILED_COUNT=0
+  WDD_TUI_ACTIVE_COUNT=0
+  WDD_TUI_PARTIAL_COUNT=0
+  manifest_each tui_count_callback
+
+  if [[ "$WDD_TUI_INTERACTIVE" -eq 1 ]]; then printf '\033[H\033[2J'; fi
+  tui_open_panel "WATCHDOG DOWNLOADER"
+  tui_row "Project  $PROJECT_DIR"
+  case "$state" in
+    RUNNING) tui_row "State    $state    downloader ${pid:---}    watchdog ${watchdog_pid:---}    workers $JOBS" "$WDD_TUI_GREEN" ;;
+    COMPLETE) tui_row "State    $state    all manifest entries verified" "$WDD_TUI_GREEN" ;;
+    PAUSED) tui_row "State    $state    resume state preserved" "$WDD_TUI_YELLOW" ;;
+    FAILED) tui_row "State    $state    inspect the failed row, then use reset-file" "$WDD_TUI_RED" ;;
+    *) tui_row "State    $state    press R to resume" "$WDD_TUI_RED" ;;
+  esac
+  tui_close_panel
+
+  tui_open_panel "TRANSFER"
+  tui_row "$(tui_progress_bar "$percent" 32)  ${percent}%    $total_text"
+  tui_row "Speed    $(human_bytes "$rate")/s    ETA $(human_duration "$eta")    Remaining $(human_bytes "$remaining")"
+  tui_row "Files    $WDD_TUI_COMPLETE_COUNT/$WDD_TUI_FILE_COUNT complete    $WDD_TUI_ACTIVE_COUNT active    $WDD_TUI_PARTIAL_COUNT resumable    $WDD_TUI_FAILED_COUNT failed"
+  tui_close_panel
+
+  tui_open_panel "FILES"
+  if [[ "$WDD_TUI_WIDTH" -ge 110 ]]; then
+    tui_row "File                         State       Progress                     Size                  Try Resume" "$WDD_TUI_BOLD"
+  else
+    tui_row "File                    State       Done    Size                    Try" "$WDD_TUI_BOLD"
+  fi
+  WDD_TUI_RENDERED_ROWS=0
+  WDD_TUI_MAX_ROWS=$((detected_height - 17))
+  [[ "$WDD_TUI_MAX_ROWS" -lt 3 ]] && WDD_TUI_MAX_ROWS=3
+  manifest_each tui_file_row_callback
+  if [[ "$WDD_TUI_RENDERED_ROWS" -lt "$WDD_TUI_FILE_COUNT" ]]; then
+    tui_row "… $((WDD_TUI_FILE_COUNT - WDD_TUI_RENDERED_ROWS)) more files; enlarge the terminal to show them" "$WDD_TUI_DIM"
+  fi
+  tui_close_panel
+
+  tui_open_panel "CONTROLS"
+  tui_row "[P] Pause    [R] Resume    [V] Verify    [Q] Close (download continues)"
+  [[ -n "$WDD_TUI_FEEDBACK" ]] && tui_row "$WDD_TUI_FEEDBACK" "$WDD_TUI_YELLOW"
+  tui_close_panel
+
+  WDD_TUI_PREVIOUS_BYTES="$done"
+  WDD_TUI_PREVIOUS_TIME="$now"
+}
+
+tui_dashboard() {
+  [[ "$#" -ge 1 && "$#" -le 3 ]] || die "usage: wdd tui <project-dir> [refresh-seconds] [--once]"
+  WDD_TUI_PROJECT="$1"
+  shift
+  local refresh=2
+  local once=0
+  while [[ "$#" -gt 0 ]]; do
+    if [[ "$1" == "--once" ]]; then once=1
+    elif [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then refresh="$1"
+    else die "usage: wdd tui <project-dir> [refresh-seconds] [--once]"
+    fi
+    shift
+  done
+  load_config "$WDD_TUI_PROJECT"
+  WDD_TUI_PROJECT="$PROJECT_DIR"
+  WDD_TUI_PREVIOUS_TIME="$(date +%s)"
+  read -r WDD_TUI_PREVIOUS_BYTES _ < <(downloaded_bytes)
+  WDD_TUI_FEEDBACK=""
+  WDD_TUI_INTERACTIVE=0
+  WDD_TUI_RESET=""
+  WDD_TUI_BOLD=""
+  WDD_TUI_DIM=""
+  WDD_TUI_CYAN=""
+  WDD_TUI_GREEN=""
+  WDD_TUI_YELLOW=""
+  WDD_TUI_RED=""
+  if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+    WDD_TUI_RESET=$'\033[0m'
+    WDD_TUI_BOLD=$'\033[1m'
+    WDD_TUI_DIM=$'\033[2m'
+    WDD_TUI_CYAN=$'\033[36m'
+    WDD_TUI_GREEN=$'\033[32m'
+    WDD_TUI_YELLOW=$'\033[33m'
+    WDD_TUI_RED=$'\033[31m'
+  fi
+  if [[ "$once" -eq 1 || ! -t 0 || ! -t 1 ]]; then
+    tui_render
+    return 0
+  fi
+
+  WDD_TUI_INTERACTIVE=1
+  printf '\033[?25l'
+  trap 'printf "\033[?25h\033[0m\n"; exit 130' INT TERM
+  local key
+  while true; do
+    tui_render
+    key=""
+    IFS= read -rsn1 -t "$refresh" key || true
+    case "$key" in
+      q|Q) break ;;
+      p|P)
+        pause_project "$WDD_TUI_PROJECT" >/dev/null
+        WDD_TUI_FEEDBACK="Paused safely. Partial bytes remain resumable."
+        ;;
+      r|R)
+        resume_project "$WDD_TUI_PROJECT" >/dev/null
+        WDD_TUI_FEEDBACK="Downloader and watchdog resumed."
+        ;;
+      v|V)
+        if verify_project "$WDD_TUI_PROJECT" >/dev/null; then
+          WDD_TUI_FEEDBACK="Verification passed."
+        else
+          WDD_TUI_FEEDBACK="Verification found incomplete or invalid files."
+        fi
+        ;;
+    esac
+  done
+  printf '\033[?25h\033[0m\n'
+  trap - INT TERM
 }
 
 verify_file_callback() {
@@ -631,6 +1092,12 @@ verify_file_callback() {
 
   if [[ "$expected" -gt 0 && "$current" -ne "$expected" ]]; then
     echo "bad-size $file $current/$expected"
+    WDD_VERIFY_STATUS=1
+    return 0
+  fi
+
+  if [[ "$expected" -eq 0 ]] && ! entry_is_complete "$file" "$expected"; then
+    echo "unconfirmed $file $current (unknown expected size; no completed transfer marker)"
     WDD_VERIFY_STATUS=1
     return 0
   fi
@@ -674,6 +1141,81 @@ stop_project() {
   fi
 }
 
+mark_interrupted_callback() {
+  local _url="$1"
+  local file="$2"
+  local expected="$3"
+  local _sha="$4"
+  local status attempts current resume_from
+  status="$(file_state_value "$file" status 2>/dev/null || true)"
+  if [[ "$status" == "downloading" || "$status" == "retrying" ]]; then
+    attempts="$(file_state_value "$file" attempts 2>/dev/null || echo 0)"
+    resume_from="$(file_state_value "$file" resume_from 2>/dev/null || echo 0)"
+    current="$(file_size "$OUT_DIR/$file")"
+    write_file_state "$file" "$WDD_INTERRUPTED_STATUS" "$current" "$expected" "$attempts" "$resume_from" "130" "$WDD_INTERRUPTED_MESSAGE"
+  fi
+}
+
+mark_interrupted_states() {
+  WDD_INTERRUPTED_STATUS="$1"
+  WDD_INTERRUPTED_MESSAGE="$2"
+  manifest_each mark_interrupted_callback
+}
+
+pause_project() {
+  load_config "$1"
+  printf '%s\n' "$(date -Is)" > "$PAUSED_FILE.tmp"
+  mv -f "$PAUSED_FILE.tmp" "$PAUSED_FILE"
+  stop_project "$PROJECT_DIR"
+  mark_interrupted_states "paused" "paused by user; partial file retained"
+  note "paused; partial files and resume state were preserved"
+}
+
+resume_project() {
+  load_config "$1"
+  rm -f "$PAUSED_FILE"
+  if all_size_complete; then
+    note "all files are already complete"
+    return 0
+  fi
+  if ! active_pid_from_file "$PIDFILE" >/dev/null; then
+    start_downloader "$PROJECT_DIR"
+  fi
+  if ! active_pid_from_file "$WATCHDOG_PIDFILE" >/dev/null; then
+    start_watchdog "$PROJECT_DIR"
+  fi
+  note "resume requested"
+}
+
+reset_file_callback() {
+  local _url="$1"
+  local file="$2"
+  local _expected="$3"
+  local _sha="$4"
+  [[ "$file" == "$WDD_RESET_TARGET" ]] || return 0
+  WDD_RESET_FOUND=1
+  local path="$OUT_DIR/$file"
+  local state quarantine
+  state="$(state_path_for_file "$file")"
+  quarantine="$STATE_DIR/quarantine/$(date -u +%Y%m%dT%H%M%SZ)/$file"
+  if [[ -e "$path" ]]; then
+    mkdir -p "$(dirname "$quarantine")"
+    mv "$path" "$quarantine"
+    note "moved previous partial file to $quarantine"
+  fi
+  rm -f "$state"
+  rm -rf "$(claim_path_for_file "$file")"
+}
+
+reset_file() {
+  load_config "$1"
+  WDD_RESET_TARGET="$2"
+  WDD_RESET_FOUND=0
+  manifest_each reset_file_callback
+  [[ "$WDD_RESET_FOUND" -eq 1 ]] || die "file is not present in the manifest: $WDD_RESET_TARGET"
+  note "reset state for file=$WDD_RESET_TARGET; use 'wdd resume' to download it again"
+}
+
 ps_project() {
   load_config "$1"
   print_processes
@@ -709,9 +1251,24 @@ main() {
       [[ "$#" -ge 1 && "$#" -le 2 ]] || die "usage: wdd status <project-dir> [sample-seconds]"
       print_status "$@"
       ;;
+    tui)
+      tui_dashboard "$@"
+      ;;
     verify)
       [[ "$#" -eq 1 ]] || die "usage: wdd verify <project-dir>"
       verify_project "$1"
+      ;;
+    pause)
+      [[ "$#" -eq 1 ]] || die "usage: wdd pause <project-dir>"
+      pause_project "$1"
+      ;;
+    resume)
+      [[ "$#" -eq 1 ]] || die "usage: wdd resume <project-dir>"
+      resume_project "$1"
+      ;;
+    reset-file)
+      [[ "$#" -eq 2 ]] || die "usage: wdd reset-file <project-dir> <relative-output-path>"
+      reset_file "$1" "$2"
       ;;
     stop)
       [[ "$#" -eq 1 ]] || die "usage: wdd stop <project-dir>"

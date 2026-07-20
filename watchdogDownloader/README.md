@@ -9,7 +9,9 @@ It is intentionally conservative:
 - Retry is handled by the outer script loop, not `curl --retry`.
 - The downloader is started with `setsid`, so it is not tied to the launching shell.
 - A watchdog can restart the whole downloader process group if aggregate downloaded bytes stop increasing.
-- Files are checked against expected byte sizes from a manifest.
+- Each file has atomic, persistent attempt and resume state.
+- Files are checked against expected byte sizes and optional SHA-256 digests.
+- A full-screen TUI shows progress, speed, ETA, workers, retries, and resume offsets.
 
 ## Requirements
 
@@ -42,9 +44,10 @@ Rules:
 
 - The second column is relative to the configured output directory.
 - `expected-bytes` should be exact when possible.
-- Use `0` only when the size is unknown; status can still show growth, but verify cannot prove completeness.
+- Use `0` only when the size is unknown. Such a file is complete only after curl exits successfully; its exact size still cannot be proven without SHA-256.
 - The fourth column is optional `sha256`.
 - Avoid spaces and tabs inside file names.
+- Absolute paths and paths containing `..` are rejected.
 
 ## Basic Usage
 
@@ -57,16 +60,16 @@ wdd init \
   /srv/mydownload-state/manifest.tsv
 ```
 
-Start the downloader:
+Start or resume both the downloader and watchdog:
 
 ```bash
-wdd start /srv/mydownload-state
+wdd resume /srv/mydownload-state
 ```
 
-Start the watchdog:
+Open the live terminal UI:
 
 ```bash
-wdd watchdog-start /srv/mydownload-state
+wdd tui /srv/mydownload-state
 ```
 
 Check status:
@@ -81,11 +84,79 @@ Verify after completion:
 wdd verify /srv/mydownload-state
 ```
 
-Stop both watchdog and downloader:
+Pause without losing partial bytes:
+
+```bash
+wdd pause /srv/mydownload-state
+wdd resume /srv/mydownload-state
+```
+
+Stop both watchdog and downloader without changing the partial files:
 
 ```bash
 wdd stop /srv/mydownload-state
 ```
+
+The lower-level `start` and `watchdog-start` commands remain available when
+the two processes need to be managed separately.
+
+## Terminal UI
+
+`wdd tui <project-dir>` opens a responsive, dependency-free full-screen view.
+It reads the same persistent state as the downloader and does not need to own
+the download process.
+
+Controls:
+
+- `P`: pause the watchdog and downloader after preserving resume state;
+- `R`: resume both processes;
+- `V`: run manifest size and SHA-256 verification;
+- `Q`: close only the window; downloads continue in the background.
+
+For logs, scripts, and CI, render one snapshot without ANSI control codes:
+
+```bash
+wdd tui /srv/mydownload-state --once
+```
+
+## Resume State
+
+Partial content remains at its final output path. Every new request uses
+`curl --continue-at -`, so curl derives the next byte offset from that file.
+Per-file state is written atomically under:
+
+```text
+<project-dir>/.wdd/files/<path-sha256>.state
+```
+
+The state records status, attempts, last resume offset, curl exit code,
+timestamp, and the most recent failure reason. A file is marked `complete`
+only after:
+
+- curl exits successfully;
+- its exact byte size matches when the manifest provides one;
+- its SHA-256 matches when the manifest provides one.
+
+Files stopped by `pause`, a watchdog restart, a lost shell, or a failed
+connection keep their bytes and resume on the next attempt. A SHA mismatch,
+oversized file, or successful transfer with the wrong size is terminal and
+shown as `failed` instead of being retried forever.
+
+To recover a failed entry, move its current data into the timestamped
+quarantine and clear only that entry's state:
+
+```bash
+wdd reset-file /srv/mydownload-state shards/part-00000.parquet
+wdd resume /srv/mydownload-state
+```
+
+`reset-file` does not delete the previous data. It moves it below
+`<project-dir>/.wdd/quarantine/` for inspection.
+
+For HTTP resources that may change at the same URL, provide SHA-256 in the
+manifest. curl's ETag comparison mode cannot be combined directly with
+`--continue-at`; the digest is therefore the final identity check. A changed
+remote object fails verification rather than being silently accepted.
 
 ## Config
 
@@ -133,6 +204,9 @@ It restarts the downloader when:
 
 It kills the downloader process group, not only the direct parent. That prevents old `curl` children from continuing to write while a new downloader starts.
 
+An explicit `wdd pause` creates a paused marker and stops both process groups,
+so the watchdog does not mistake an intentional pause for a stalled transfer.
+
 ## Parallel Downloads
 
 Set `JOBS` in `.wdd/config`:
@@ -161,6 +235,19 @@ wdd init \
   /srv/codecontestplus-files \
   ./watchdogDownloader/examples/ccplus_1x.manifest.tsv
 ```
+
+## Development
+
+Run syntax and end-to-end interruption tests:
+
+```bash
+bash -n watchdogDownloader/wdd
+python -m unittest discover -s watchdogDownloader/tests -v
+```
+
+The integration test uses a local HTTP server that deliberately drops the
+first response after writing a partial file. It asserts that the next request
+uses a non-zero byte range and that the final SHA-256 is correct.
 
 ## License
 
