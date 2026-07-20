@@ -1,5 +1,7 @@
 # Licensing scope
 
+[English](LICENSE_SCOPE.md) | [简体中文](LICENSE_SCOPE.zh-CN.md)
+
 This repository contains software, documentation, datasets, and imported
 material with different ownership and licensing requirements.
 
@@ -12,7 +14,8 @@ following paths are licensed under the root [MIT License](LICENSE):
 - `dashboard/`;
 - `watchdogDownloader/`;
 - `whn_skill/`; and
-- the root `README.md` and other original repository-level configuration.
+- the root `README.md`, `README.zh-CN.md`, and other original repository-level
+  configuration.
 
 `dashboard/` and `watchdogDownloader/` also contain local copies of the MIT
 License so that each tool keeps its license when distributed independently.

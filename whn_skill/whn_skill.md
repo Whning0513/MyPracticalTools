@@ -5,6 +5,8 @@ description: Apply the user's stable reasoning, decision-making, communication, 
 
 # User Workstyle
 
+[English](whn_skill.md) | [简体中文](whn_skill.zh-CN.md)
+
 ## Purpose
 
 Adapt the reasoning process, execution plan, and final writing to the user's stable preferences.

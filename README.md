@@ -1,12 +1,11 @@
 # MyPracticalTools
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 [![CI](https://github.com/Whning0513/MyPracticalTools/actions/workflows/ci.yml/badge.svg)](https://github.com/Whning0513/MyPracticalTools/actions/workflows/ci.yml)
 
 Small, reusable tools and reference assets for long-running ML, data, and
 automation workflows.
-
-这是一个个人实用工具集合。每个工具都有独立文档和明确的使用边界，可以单独安装或复制，
-不需要采用整个仓库的其他部分。
 
 ## Included projects
 
@@ -63,7 +62,7 @@ the manifest format, retry behavior, verification, and tuning controls.
 
 `datasets/ACA_small_v0.2/` contains compressed train/test problems and
 submissions. Use `manifest.json` as the versioned source of truth and inspect
-`audit/report.json` before consuming the package. The accompanying
+`audit_report.json` before consuming the package. The accompanying
 [design document](docs/dataset-and-datapackage-design.md) distinguishes frozen
 benchmark evidence from replay output, constructed references, validators, and
 blind probes.

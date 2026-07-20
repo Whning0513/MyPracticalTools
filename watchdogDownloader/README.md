@@ -1,5 +1,7 @@
 # watchdogdownloader
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 `watchdogdownloader` is a small Bash tool for large downloads that are likely to hit bad long-lived connections. It is the generic version of the Code-Contests-Plus downloader logic.
 
 It is intentionally conservative:

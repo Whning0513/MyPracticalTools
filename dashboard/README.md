@@ -1,5 +1,7 @@
 # Practical Run Dashboard
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 A reusable Rich terminal UI for long-running, checkpointed training pipelines.
 It combines scheduler JSON, Hugging Face `checkpoint-N/trainer_state.json`,
 tqdm logs, evaluation progress, and `nvidia-smi` into one live view.
