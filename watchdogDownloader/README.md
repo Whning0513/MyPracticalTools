@@ -11,19 +11,22 @@ It is intentionally conservative:
 - A watchdog can restart the whole downloader process group if aggregate downloaded bytes stop increasing.
 - Files are checked against expected byte sizes from a manifest.
 
+## Requirements
+
+`watchdogdownloader` targets Linux and requires Bash, `curl`, `setsid`,
+`flock`, and standard GNU utilities such as `readlink`, `stat`, and `sha256sum`.
+
 ## Install
 
-The main command is:
+Clone the repository and install `wdd` into a directory on `PATH`:
 
 ```bash
-/data/whn/tools/watchdogdownloader/wdd
+git clone https://github.com/Whning0513/MyPracticalTools.git
+install -Dm755 MyPracticalTools/watchdogDownloader/wdd "$HOME/.local/bin/wdd"
+wdd --version
 ```
 
-Optional convenience symlink:
-
-```bash
-ln -sf /data/whn/tools/watchdogdownloader/wdd /data/whn/tools/wdd
-```
+Alternatively, run `watchdogDownloader/wdd` directly from the checkout.
 
 ## Manifest
 
@@ -48,40 +51,40 @@ Rules:
 Create a project:
 
 ```bash
-/data/whn/tools/watchdogdownloader/wdd init \
-  /data/whn/raw/mydownload \
-  /data/whn/raw/mydownload/files \
-  /data/whn/raw/mydownload/manifest.tsv
+wdd init \
+  /srv/mydownload-state \
+  /srv/mydownload-files \
+  /srv/mydownload-state/manifest.tsv
 ```
 
 Start the downloader:
 
 ```bash
-/data/whn/tools/watchdogdownloader/wdd start /data/whn/raw/mydownload
+wdd start /srv/mydownload-state
 ```
 
 Start the watchdog:
 
 ```bash
-/data/whn/tools/watchdogdownloader/wdd watchdog-start /data/whn/raw/mydownload
+wdd watchdog-start /srv/mydownload-state
 ```
 
 Check status:
 
 ```bash
-/data/whn/tools/watchdogdownloader/wdd status /data/whn/raw/mydownload
+wdd status /srv/mydownload-state
 ```
 
 Verify after completion:
 
 ```bash
-/data/whn/tools/watchdogdownloader/wdd verify /data/whn/raw/mydownload
+wdd verify /srv/mydownload-state
 ```
 
 Stop both watchdog and downloader:
 
 ```bash
-/data/whn/tools/watchdogdownloader/wdd stop /data/whn/raw/mydownload
+wdd stop /srv/mydownload-state
 ```
 
 ## Config
@@ -146,17 +149,15 @@ Use parallelism only for independent files. Do not use it to split a single file
 
 An example manifest is included:
 
-```bash
-/data/whn/tools/watchdogdownloader/examples/ccplus_1x.manifest.tsv
+```text
+watchdogDownloader/examples/ccplus_1x.manifest.tsv
 ```
 
 To create a fresh generic project for that dataset:
 
 ```bash
-/data/whn/tools/watchdogdownloader/wdd init \
-  /data/whn/raw/codecontestplus_wdd \
-  /data/whn/raw/codecontestplus_wdd/ccplus_1x \
-  /data/whn/tools/watchdogdownloader/examples/ccplus_1x.manifest.tsv
+wdd init \
+  /srv/codecontestplus-state \
+  /srv/codecontestplus-files \
+  ./watchdogDownloader/examples/ccplus_1x.manifest.tsv
 ```
-
-This does not affect the older hand-written downloader currently running under `/data/whn/raw/codecontestplus`.
