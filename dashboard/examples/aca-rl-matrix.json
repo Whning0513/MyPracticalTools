@@ -1,0 +1,26 @@
+{
+  "title": "ACA RL Matrix",
+  "project_root": "/data3/whn/Projects/amodel",
+  "run_dir": "artifacts/rl_matrix/aca_small_1000_100_20260719",
+  "training_status_file": "status.json",
+  "evaluation_status_file": "evaluation_status.json",
+  "jobs": [
+    {"name": "dpo", "label": "DPO", "total_steps": 250},
+    {"name": "grpo", "label": "GRPO", "total_steps": 1000},
+    {"name": "dr_grpo", "label": "Dr.GRPO", "total_steps": 1000},
+    {"name": "opsd", "label": "OPSD", "total_steps": 250}
+  ],
+  "setup_checks": [
+    "artifacts/datasets/ACA_small_v0.2/derived/rl_train_manifest.json",
+    "artifacts/calibration/gtor_base_train20_20260719_v1/summary.json"
+  ],
+  "evaluation": {
+    "label": "Frozen test (5 x 100)",
+    "expected_policies": 5,
+    "tasks_per_policy": 100
+  },
+  "final_report_files": ["final_report.json", "final_report.md"],
+  "gpu_ids": [4, 5, 6, 7],
+  "allowed_gpus": [4, 7],
+  "external_gpu_threshold_mb": 2048
+}

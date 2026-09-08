@@ -1,0 +1,21 @@
+# URL	relative-output-path	expected-bytes	sha256
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00000-of-00020.parquet	part-00000-of-00020.parquet	2524010025	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00001-of-00020.parquet	part-00001-of-00020.parquet	2840376912	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00002-of-00020.parquet	part-00002-of-00020.parquet	2334958829	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00003-of-00020.parquet	part-00003-of-00020.parquet	2404368756	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00004-of-00020.parquet	part-00004-of-00020.parquet	2066890643	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00005-of-00020.parquet	part-00005-of-00020.parquet	1978007413	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00006-of-00020.parquet	part-00006-of-00020.parquet	2395672980	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00007-of-00020.parquet	part-00007-of-00020.parquet	2126571920	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00008-of-00020.parquet	part-00008-of-00020.parquet	1992312611	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00009-of-00020.parquet	part-00009-of-00020.parquet	2413217466	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00010-of-00020.parquet	part-00010-of-00020.parquet	2641409775	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00011-of-00020.parquet	part-00011-of-00020.parquet	2458582842	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00012-of-00020.parquet	part-00012-of-00020.parquet	2645651608	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00013-of-00020.parquet	part-00013-of-00020.parquet	2414480469	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00014-of-00020.parquet	part-00014-of-00020.parquet	2379209285	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00015-of-00020.parquet	part-00015-of-00020.parquet	1791806055	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00016-of-00020.parquet	part-00016-of-00020.parquet	2049020829	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00017-of-00020.parquet	part-00017-of-00020.parquet	2118542400	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00018-of-00020.parquet	part-00018-of-00020.parquet	2542271501	
+https://huggingface.co/datasets/ByteDance-Seed/Code-Contests-Plus/resolve/main/ccplus_1x/part-00019-of-00020.parquet	part-00019-of-00020.parquet	1897658074	

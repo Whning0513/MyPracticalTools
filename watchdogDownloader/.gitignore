@@ -1,0 +1,6 @@
+.wdd/
+*.log
+*.pid
+*.tmp
+*.part
+__pycache__/
