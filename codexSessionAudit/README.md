@@ -17,7 +17,7 @@ JSON output works well for comparing machines:
 codex-session-audit ~/.codex --label gpu-node --format json > session-audit.json
 ```
 
-The scanner accepts a `.codex` root, a `sessions` directory, a single JSONL file, or several inputs. Source labels appear in the report in place of filesystem paths.
+The scanner accepts a `.codex` root, a `sessions` directory, a single JSONL file, or several inputs. It handles current records and legacy message records that store text directly in the payload. Source labels appear in the report in place of filesystem paths.
 
 ## Privacy boundary
 

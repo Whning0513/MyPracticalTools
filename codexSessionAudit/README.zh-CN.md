@@ -17,7 +17,7 @@ codex-session-audit ~/.codex --label workstation
 codex-session-audit ~/.codex --label gpu-node --format json > session-audit.json
 ```
 
-输入可以是 `.codex` 根目录、`sessions` 目录、单个 JSONL 文件或多个路径。报告只显示你提供的安全标签，不显示源路径。
+输入可以是 `.codex` 根目录、`sessions` 目录、单个 JSONL 文件或多个路径。扫描器同时支持当前记录和将正文直接存入 payload 的旧版消息记录。报告只显示你提供的安全标签，不显示源路径。
 
 ## 隐私边界
 

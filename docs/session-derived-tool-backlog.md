@@ -10,8 +10,14 @@ and 464,350 JSONL records dated from June through September 2026.
 The analysis retained counts, dates, task categories, and tool names. It did
 not retain or publish prompts, responses, command arguments, tool output,
 working directories, hostnames, account names, or credentials. The converted
-historical archive uses a reduced schema, so it contributes inventory counts
-but not task-category rankings.
+historical archive uses a reduced message schema; the audit handles that schema
+without publishing the stored text.
+
+The converted archive is dominated by environment and configuration work,
+followed by numerical computing, testing, and contribution maintenance. The
+two active archives add a strong cluster around experiment operations, remote
+compute, and artifact handling. Those patterns favor small state-capture and
+verification tools over project-specific code generators.
 
 ## What is already covered
 
@@ -24,27 +30,28 @@ but not task-category rankings.
 
 ## Next candidates
 
-1. **Artifact manifest builder and verifier.** Create a deterministic manifest
+1. **Sanitized Codex configuration backup and diff.** Export allowlisted config,
+   skills, and instruction files while rejecting tokens, histories, caches,
+   machine paths, and identity files. Environment and configuration work
+   appeared in 4,878 converted-archive sessions and 67 current workstation
+   sessions.
+2. **Artifact manifest builder and verifier.** Create a deterministic manifest
    with relative paths, byte sizes, hashes, media types, and optional split
    labels; verify it after transfer. Data and artifact work appeared in 107
    compute-node sessions and 51 workstation sessions.
-2. **Remote run handoff snapshot.** Produce one sanitized JSON file describing
+3. **Remote run handoff snapshot.** Produce one sanitized JSON file describing
    a job's command name, state, checkpoint, logs, GPU allocation, and restart
    instructions. Remote-compute and experiment-operation work dominate the
    compute-node archive.
-3. **Sanitized Codex configuration backup and diff.** Export allowlisted config,
-   skills, and instruction files while rejecting tokens, histories, caches,
-   machine paths, and identity files. Environment and configuration work
-   appeared in 67 workstation sessions.
 4. **Read-only contribution queue snapshot.** Summarize review state, CI state,
    maintainer requests, and staleness for an explicit repository allowlist.
    GitHub contribution work appeared in 59 workstation sessions. The tool
    should never post, close, merge, or edit anything.
 
-The first two candidates have the broadest value beyond a single machine. The
-configuration backup is useful but needs a deliberately small allowlist. The
-contribution snapshot should remain read-only so that triage cannot turn into
-bulk account activity.
+The first three candidates have value beyond a single project. The
+configuration backup needs a deliberately small allowlist. The contribution
+snapshot should remain read-only so that triage cannot turn into bulk account
+activity.
 
 ## Selection rule
 

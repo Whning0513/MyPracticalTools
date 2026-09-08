@@ -82,6 +82,37 @@ def test_markdown_omits_paths_and_message_text(tmp_path: Path) -> None:
     assert "Fix a GitHub" not in report
 
 
+def test_audit_reads_legacy_message_text(tmp_path: Path) -> None:
+    session = tmp_path / ".codex" / "sessions" / "2026" / "06" / "legacy.jsonl"
+    session.parent.mkdir(parents=True)
+    records = [
+        {
+            "timestamp": "2026-06-01T00:00:00Z",
+            "type": "session_meta",
+            "payload": {"id": "private-id"},
+        },
+        {
+            "timestamp": "2026-06-01T00:01:00Z",
+            "type": "response_item",
+            "payload": {
+                "type": "message",
+                "role": "user",
+                "text": "resume an experiment checkpoint",
+            },
+        },
+    ]
+    session.write_text(
+        "\n".join(json.dumps(record) for record in records) + "\n",
+        encoding="utf-8",
+    )
+
+    result = audit_module.audit([tmp_path / ".codex"], ["legacy"]).to_dict()
+
+    assert result["summary"]["user_messages"] == 1
+    categories = {item["name"] for item in result["categories"]}
+    assert "experiment-operations" in categories
+
+
 def test_malformed_candidate_can_fail_cli(tmp_path: Path, capsys) -> None:
     session = tmp_path / "sessions" / "broken.jsonl"
     session.parent.mkdir(parents=True)

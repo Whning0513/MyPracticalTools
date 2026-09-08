@@ -148,7 +148,8 @@ def message_text(payload: dict[str, object]) -> str:
     if isinstance(content, str):
         return content
     if not isinstance(content, list):
-        return ""
+        legacy_text = payload.get("text")
+        return legacy_text if isinstance(legacy_text, str) else ""
     parts: list[str] = []
     for item in content:
         if not isinstance(item, dict):
