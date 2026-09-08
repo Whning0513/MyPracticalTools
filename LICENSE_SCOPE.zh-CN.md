@@ -12,6 +12,8 @@
 
 - `.github/`；
 - `dashboard/`；
+- `codexSessionAudit/`；
+- `repoReleaseAudit/`；
 - `watchdogDownloader/`；
 - `whn_skill/`；
 - 根目录的 `README.md`、`README.zh-CN.md`，以及其他原创的仓库级配置。

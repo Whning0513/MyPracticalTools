@@ -13,8 +13,11 @@ automation workflows.
 | --- | --- | --- |
 | [Practical Run Dashboard](dashboard/README.md) | Python 3.10+ | Read-only terminal dashboard for checkpointed training and evaluation jobs, including progress, ETA, GPU use, and recoverable state. |
 | [watchdogDownloader](watchdogDownloader/README.md) | Bash on Linux | Resumable manifest-based downloads with low-speed detection, process supervision, and size or SHA-256 verification. |
+| [Codex Session Audit](codexSessionAudit/README.md) | Python 3.10+ | Content-free inventory of Codex session archives, repeated task categories, and tool-call frequency. |
+| [Repository Release Audit](repoReleaseAudit/README.md) | Python 3.10+ | Preflight checks for secrets, machine paths, repository metadata, links, file sizes, and executable scripts. |
 | [ACA small v0.2](datasets/ACA_small_v0.2/) | Zstandard JSONL | Versioned train/test dataset package with a manifest, blind-gate metadata, and audit reports. |
 | [Dataset design notes](docs/dataset-and-datapackage-design.md) | Markdown | Reproducibility, split isolation, replay, validator, reference, and release requirements for the ACA data package. |
+| [Session-derived tool backlog](docs/session-derived-tool-backlog.md) | Markdown | Privacy-safe evidence and priorities for the next reusable utilities. |
 | [User workstyle skill](whn_skill/whn_skill.md) | Markdown | A Codex skill for evidence-driven coding, research, and technical communication. |
 
 ## Quick start
@@ -74,6 +77,8 @@ Run the Python tests:
 ```bash
 python -m pip install -e './dashboard[test]'
 python -m pytest dashboard/tests -q
+python -m pytest codexSessionAudit/tests -q
+python -m pytest repoReleaseAudit/tests -q
 ```
 
 Check the Bash script and its interruption/resume integration tests:

@@ -14,8 +14,11 @@
 | --- | --- | --- |
 | [Practical Run Dashboard](dashboard/README.zh-CN.md) | Python 3.10+ | 面向带检查点训练与评测任务的只读终端仪表盘，显示进度、ETA、GPU 使用情况和可恢复状态。 |
 | [watchdogDownloader](watchdogDownloader/README.zh-CN.md) | Linux Bash | 支持续传的清单式下载工具，具有低速检测、进程监管以及文件大小或 SHA-256 校验。 |
+| [Codex 会话审计器](codexSessionAudit/README.zh-CN.md) | Python 3.10+ | 汇总 Codex 会话存档、重复任务类别和工具调用频率，不输出聊天正文。 |
+| [仓库发布审计器](repoReleaseAudit/README.zh-CN.md) | Python 3.10+ | 检查凭据、机器路径、仓库元数据、链接、文件大小和脚本执行位。 |
 | [ACA small v0.2](datasets/ACA_small_v0.2/) | Zstandard JSONL | 带 manifest、盲测门控元数据和审计报告的版本化训练/测试数据包。 |
 | [数据集设计说明](docs/dataset-and-datapackage-design.zh-CN.md) | Markdown | 说明 ACA 数据包的可复现性、切分隔离、重放、validator、reference 和发布要求。 |
+| [会话提炼工具清单](docs/session-derived-tool-backlog.zh-CN.md) | Markdown | 用脱敏统计说明下一批可复用工具的依据和优先级。 |
 | [用户工作方式 skill](whn_skill/whn_skill.zh-CN.md) | Markdown | 用于证据驱动的编码、研究和技术沟通的 Codex skill。 |
 
 ## 快速开始
@@ -68,6 +71,8 @@ wdd tui /srv/download-state
 ```bash
 python -m pip install -e './dashboard[test]'
 python -m pytest dashboard/tests -q
+python -m pytest codexSessionAudit/tests -q
+python -m pytest repoReleaseAudit/tests -q
 ```
 
 检查 Bash 脚本及其中断/续传集成测试：
