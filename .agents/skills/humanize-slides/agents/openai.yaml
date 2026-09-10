@@ -1,0 +1,6 @@
+interface:
+  display_name: "Humanize Slides"
+  short_description: "Remove AI-looking patterns from slides and PPT"
+  default_prompt: "Use $humanize-slides to make these slides look intentionally human-designed."
+policy:
+  allow_implicit_invocation: true

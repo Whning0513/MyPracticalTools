@@ -11,6 +11,7 @@ The original software, configuration, and supporting documentation in the
 following paths are licensed under the root [MIT License](LICENSE):
 
 - `.github/`;
+- `.agents/skills/`;
 - `dashboard/`;
 - `codexSessionAudit/`;
 - `repoReleaseAudit/`;

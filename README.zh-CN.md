@@ -15,6 +15,8 @@
 | [Practical Run Dashboard](dashboard/README.zh-CN.md) | Python 3.10+ | 面向带检查点训练与评测任务的只读终端仪表盘，显示进度、ETA、GPU 使用情况和可恢复状态。 |
 | [watchdogDownloader](watchdogDownloader/README.zh-CN.md) | Linux Bash | 支持续传的清单式下载工具，具有低速检测、进程监管以及文件大小或 SHA-256 校验。 |
 | [DingTalk Webhook](dingtalk_webhook/README.md) | Python 3.10+ | 钉钉通知客户端，以及用于 Claude Code 和 Telegram 工作流的 FastAPI 桥接服务。 |
+| [Humanize Text](.agents/skills/humanize-text/SKILL.md) | Codex skill | 仅在用户明确要求文字去 AI 化或写得像人时修改语言。 |
+| [Humanize Slides](.agents/skills/humanize-slides/SKILL.md) | Codex skill | 仅在用户明确要求 slides 或 PPT 去除 AI 生成感时修改视觉设计。 |
 | [Codex 会话审计器](codexSessionAudit/README.zh-CN.md) | Python 3.10+ | 汇总 Codex 会话存档、重复任务类别和工具调用频率，不输出聊天正文。 |
 | [仓库发布审计器](repoReleaseAudit/README.zh-CN.md) | Python 3.10+ | 检查凭据、机器路径、仓库元数据、链接、文件大小和脚本执行位。 |
 | [ACA small v0.2](datasets/ACA_small_v0.2/) | Zstandard JSONL | 带 manifest、盲测门控元数据和审计报告的版本化训练/测试数据包。 |

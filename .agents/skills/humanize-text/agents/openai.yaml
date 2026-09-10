@@ -1,0 +1,6 @@
+interface:
+  display_name: "Humanize Text"
+  short_description: "Remove AI language patterns from prose on request"
+  default_prompt: "Use $humanize-text to make this text sound naturally human while preserving its meaning."
+policy:
+  allow_implicit_invocation: true

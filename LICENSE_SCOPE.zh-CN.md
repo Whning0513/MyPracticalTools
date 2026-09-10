@@ -11,6 +11,7 @@
 以下路径中的原创软件、配置和配套文档使用根目录的 [MIT License](LICENSE)：
 
 - `.github/`；
+- `.agents/skills/`；
 - `dashboard/`；
 - `codexSessionAudit/`；
 - `repoReleaseAudit/`；

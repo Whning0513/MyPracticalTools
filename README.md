@@ -14,6 +14,8 @@ automation workflows.
 | [Practical Run Dashboard](dashboard/README.md) | Python 3.10+ | Read-only terminal dashboard for checkpointed training and evaluation jobs, including progress, ETA, GPU use, and recoverable state. |
 | [watchdogDownloader](watchdogDownloader/README.md) | Bash on Linux | Resumable manifest-based downloads with low-speed detection, process supervision, and size or SHA-256 verification. |
 | [DingTalk Webhook](dingtalk_webhook/README.md) | Python 3.10+ | DingTalk notification client plus FastAPI bridges for Claude Code and Telegram workflows. |
+| [Humanize Text](.agents/skills/humanize-text/SKILL.md) | Codex skill | Revises prose only when the user explicitly asks to remove AI-writing patterns or make the language sound human. |
+| [Humanize Slides](.agents/skills/humanize-slides/SKILL.md) | Codex skill | Revises slides and PPT visuals only when the user explicitly asks to remove an AI-generated look. |
 | [Codex Session Audit](codexSessionAudit/README.md) | Python 3.10+ | Content-free inventory of Codex session archives, repeated task categories, and tool-call frequency. |
 | [Repository Release Audit](repoReleaseAudit/README.md) | Python 3.10+ | Preflight checks for secrets, machine paths, repository metadata, links, file sizes, and executable scripts. |
 | [ACA small v0.2](datasets/ACA_small_v0.2/) | Zstandard JSONL | Versioned train/test dataset package with a manifest, blind-gate metadata, and audit reports. |
