@@ -110,6 +110,8 @@ load_config() {
   STALL_LIMIT="${STALL_LIMIT:-600}"
   BACKOFF_SECONDS="${BACKOFF_SECONDS:-10}"
 
+  [[ "$JOBS" =~ ^[1-9][0-9]*$ ]] || die "JOBS must be a positive integer"
+
   mkdir -p "$OUT_DIR" "$STATE_DIR" "$CLAIM_DIR" "$FILE_STATE_DIR"
   require_command sha256sum
 }
