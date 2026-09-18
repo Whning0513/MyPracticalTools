@@ -5,6 +5,7 @@ import time
 import json
 import urllib.request
 import urllib.error
+from urllib.parse import urlencode
 import os
 from typing import Optional
 
@@ -45,11 +46,14 @@ class DingTalkSender:
     def _url(self) -> str:
         timestamp = str(round(time.time() * 1000))
         sign = self._sign(timestamp)
-        return (
-            f"https://oapi.dingtalk.com/robot/send"
-            f"?access_token={self.access_token}"
-            f"&timestamp={timestamp}&sign={sign}"
+        query = urlencode(
+            {
+                "access_token": self.access_token,
+                "timestamp": timestamp,
+                "sign": sign,
+            }
         )
+        return f"https://oapi.dingtalk.com/robot/send?{query}"
 
     def _post(self, payload: dict) -> dict:
         data = json.dumps(payload).encode("utf-8")
