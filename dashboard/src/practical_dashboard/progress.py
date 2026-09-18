@@ -180,8 +180,15 @@ def _evaluation_progress(config: DashboardConfig, state: dict[str, Any]) -> tupl
     total = config.evaluation.expected_policies * config.evaluation.tasks_per_policy
     if state.get("phase") == "complete":
         return total, total
+    if not isinstance(policies, dict):
+        # A partially migrated or externally edited state file should not take
+        # down the read-only dashboard.  Treat an invalid policy container as
+        # no completed evaluation work until the producer repairs it.
+        return 0, total
     done = 0
     for policy in policies.values():
+        if not isinstance(policy, dict):
+            continue
         if policy.get("status") == "complete":
             done += config.evaluation.tasks_per_policy
             continue

@@ -131,3 +131,23 @@ def test_evaluation_progress_and_duration_formatting(tmp_path: Path):
     assert snapshot.evaluation_current == 27
     assert snapshot.evaluation_total == 60
     assert format_duration(3661) == "1h 01m"
+
+
+def test_malformed_evaluation_policy_container_does_not_crash_dashboard(tmp_path: Path):
+    config = load_config(config_file(tmp_path))
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+    jobs = {
+        name: {"status": "complete", "output_dir": str(tmp_path / "outputs" / name)}
+        for name in ("done", "live", "held")
+    }
+    write_json(config.run_dir / "status.json", {
+        "last_poll_at": "2999-01-01T00:00:00+00:00", "jobs": jobs
+    })
+    write_json(config.run_dir / "evaluation_status.json", {
+        "phase": "evaluating", "policies": ["stale schema"]
+    })
+
+    snapshot = build_snapshot(config)
+    assert snapshot.phase == "evaluation"
+    assert snapshot.evaluation_current == 0
+    assert snapshot.evaluation_total == 60
