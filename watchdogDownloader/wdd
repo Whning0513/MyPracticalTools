@@ -339,10 +339,24 @@ stop_process_group() {
 }
 
 acquire_run_lock() {
-  if ! mkdir "$RUN_LOCK" 2>/dev/null; then
-    die "another downloader appears to be running; lock exists: $RUN_LOCK"
+  if mkdir "$RUN_LOCK" 2>/dev/null; then
+    echo "$$" > "$RUN_LOCK/pid"
+    return 0
   fi
-  echo "$$" > "$RUN_LOCK/pid"
+
+  # A process crash can leave the directory behind. Reclaim it only when the
+  # recorded owner is definitely gone; an unreadable lock remains protected.
+  local owner
+  owner="$(cat "$RUN_LOCK/pid" 2>/dev/null || true)"
+  if [[ "$owner" =~ ^[0-9]+$ ]] && ! ps -p "$owner" >/dev/null 2>&1; then
+    rm -f "$RUN_LOCK/pid"
+    if rmdir "$RUN_LOCK" 2>/dev/null && mkdir "$RUN_LOCK" 2>/dev/null; then
+      echo "$$" > "$RUN_LOCK/pid"
+      return 0
+    fi
+  fi
+
+  die "another downloader appears to be running; lock exists: $RUN_LOCK"
 }
 
 release_run_lock() {

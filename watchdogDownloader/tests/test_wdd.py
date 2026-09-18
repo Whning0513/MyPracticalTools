@@ -186,6 +186,15 @@ class WddIntegrationTest(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("must stay below OUT_DIR", completed.stderr)
 
+    def test_stale_run_lock_is_reclaimed(self) -> None:
+        lock = self.project / ".wdd" / "run.lock"
+        lock.mkdir()
+        (lock / "pid").write_text("2147483647\n", encoding="utf-8")
+
+        completed = self.run_wdd("run", self.project)
+
+        self.assertIn("complete", completed.stdout)
+
     def test_terminal_checksum_failure_is_visible(self) -> None:
         lines = self.manifest.read_text(encoding="utf-8").splitlines()
         fields = lines[0].split("\t")
