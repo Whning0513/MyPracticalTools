@@ -195,6 +195,15 @@ class WddIntegrationTest(unittest.TestCase):
 
         self.assertIn("complete", completed.stdout)
 
+    def test_invalid_worker_count_is_rejected_before_download(self) -> None:
+        with (self.project / ".wdd/config").open("a", encoding="utf-8") as handle:
+            handle.write("JOBS=0\n")
+
+        completed = self.run_wdd("run", self.project, check=False)
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("JOBS must be a positive integer", completed.stderr)
+
     def test_terminal_checksum_failure_is_visible(self) -> None:
         lines = self.manifest.read_text(encoding="utf-8").splitlines()
         fields = lines[0].split("\t")
