@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "artifact-manifest"
+version = "0.1.0"
+description = "Deterministic manifests for verifying transferred files and research artifacts"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+readme = "README.md"
+authors = [{ name = "Hengning Wang" }]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+artifact-manifest = "artifact_manifest:main"
+
+[tool.setuptools]
+py-modules = ["artifact_manifest"]

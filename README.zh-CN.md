@@ -19,6 +19,7 @@
 | [Humanize Slides](.agents/skills/humanize-slides/SKILL.md) | Codex skill | 仅在用户明确要求 slides 或 PPT 去除 AI 生成感时修改视觉设计。 |
 | [Codex 会话审计器](codexSessionAudit/README.zh-CN.md) | Python 3.10+ | 汇总 Codex 会话存档、重复任务类别和工具调用频率，不输出聊天正文。 |
 | [仓库发布审计器](repoReleaseAudit/README.zh-CN.md) | Python 3.10+ | 检查凭据、机器路径、仓库元数据、链接、文件大小和脚本执行位。 |
+| [artifactManifest](artifactManifest/README.zh-CN.md) | Python 3.10+ | 生成确定性文件清单，用于核对复制、上传或交接后的产物。 |
 | [ACA small v0.2](datasets/ACA_small_v0.2/) | Zstandard JSONL | 带 manifest、盲测门控元数据和审计报告的版本化训练/测试数据包。 |
 | [数据集设计说明](docs/dataset-and-datapackage-design.zh-CN.md) | Markdown | 说明 ACA 数据包的可复现性、切分隔离、重放、validator、reference 和发布要求。 |
 | [会话提炼工具清单](docs/session-derived-tool-backlog.zh-CN.md) | Markdown | 用脱敏统计说明下一批可复用工具的依据和优先级。 |
@@ -63,6 +64,24 @@ wdd tui /srv/download-state
 
 清单格式、重试行为、校验和调优参数见 [watchdogDownloader 文档](watchdogDownloader/README.zh-CN.md)。
 
+### artifactManifest
+
+从本仓库安装独立工具：
+
+```bash
+python -m pip install \
+  "git+https://github.com/Whning0513/MyPracticalTools.git#subdirectory=artifactManifest"
+```
+
+移动产物前先生成确定性清单，在目标位置核验：
+
+```bash
+artifact-manifest create ./artifact ./artifact.manifest.json --exclude '*.tmp'
+artifact-manifest verify ./artifact ./artifact.manifest.json --exclude '*.tmp'
+```
+
+JSON 格式和退出码见 [artifactManifest 文档](artifactManifest/README.zh-CN.md)。
+
 ## 数据包
 
 `datasets/ACA_small_v0.2/` 包含压缩后的训练/测试题目和提交。请将 `manifest.json` 作为版本化事实来源，并在使用数据包前检查 `audit_report.json`。配套的[设计文档](docs/dataset-and-datapackage-design.zh-CN.md)明确区分冻结的基准证据、重放输出、构造 reference、validator 和 blind probe。
@@ -76,6 +95,7 @@ python -m pip install -e './dashboard[test]'
 python -m pytest dashboard/tests -q
 python -m pytest codexSessionAudit/tests -q
 python -m pytest repoReleaseAudit/tests -q
+python -m pytest artifactManifest/tests -q
 ```
 
 检查 Bash 脚本及其中断/续传集成测试：
@@ -86,7 +106,7 @@ watchdogDownloader/wdd --version
 python -m unittest discover -s watchdogDownloader/tests -v
 ```
 
-CI 会在 pull request 和 `main` 分支变更时运行这两组检查。
+CI 会在 pull request 和 `main` 分支变更时运行这些检查。
 
 ## 许可证
 

@@ -27,6 +27,7 @@ verification tools over project-specific code generators.
 | Resume and verify large downloads | [watchdogDownloader](../watchdogDownloader/README.md) | Transfer work appeared repeatedly on the workstation, while manifests and checksums also support artifact handling. |
 | Inventory session archives without leaking their contents | [Codex Session Audit](../codexSessionAudit/README.md) | Session review itself needs a repeatable, privacy-preserving summary. |
 | Check a worktree before making it public | [Repository Release Audit](../repoReleaseAudit/README.md) | Release, documentation, environment, and artifact cleanup recur across both active archives. |
+| Verify files after moving or publishing an artifact | [artifactManifest](../artifactManifest/README.md) | Data and artifact work needs a small, deterministic inventory that can be checked at the destination. |
 
 ## Next candidates
 
@@ -35,15 +36,11 @@ verification tools over project-specific code generators.
    machine paths, and identity files. Environment and configuration work
    appeared in 4,878 converted-archive sessions and 67 current workstation
    sessions.
-2. **Artifact manifest builder and verifier.** Create a deterministic manifest
-   with relative paths, byte sizes, hashes, media types, and optional split
-   labels; verify it after transfer. Data and artifact work appeared in 107
-   compute-node sessions and 51 workstation sessions.
-3. **Remote run handoff snapshot.** Produce one sanitized JSON file describing
+2. **Remote run handoff snapshot.** Produce one sanitized JSON file describing
    a job's command name, state, checkpoint, logs, GPU allocation, and restart
    instructions. Remote-compute and experiment-operation work dominate the
    compute-node archive.
-4. **Read-only contribution queue snapshot.** Summarize review state, CI state,
+3. **Read-only contribution queue snapshot.** Summarize review state, CI state,
    maintainer requests, and staleness for an explicit repository allowlist.
    GitHub contribution work appeared in 59 workstation sessions. The tool
    should never post, close, merge, or edit anything.

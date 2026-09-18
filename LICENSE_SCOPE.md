@@ -15,6 +15,7 @@ following paths are licensed under the root [MIT License](LICENSE):
 - `dashboard/`;
 - `codexSessionAudit/`;
 - `repoReleaseAudit/`;
+- `artifactManifest/`;
 - `watchdogDownloader/`;
 - `whn_skill/`; and
 - the root `README.md`, `README.zh-CN.md`, and other original repository-level
