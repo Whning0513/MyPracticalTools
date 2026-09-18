@@ -11,24 +11,25 @@ import time
 import asyncio
 import subprocess
 
-from .sender import DingTalkSender
+from .sender import DingTalkSender, get_dingtalk_credentials
 
 # ── config ──────────────────────────────────────────────────────────
-ACCESS_TOKEN = os.environ.get(
-    "DINGTALK_ACCESS_TOKEN",
-    "9f2bd3f1fcff3c673de165149be67895980b69001db1096f6eb0da329070cb2c",
-)
-SECRET = os.environ.get(
-    "DINGTALK_SECRET",
-    "SEC534c62399a9f81870bde8558d8c9a74592c1020c93c9ac13054e49bd4e62943b",
-)
 CC_MODE = os.environ.get("CC_MODE", "print")
 CC_TIMEOUT = int(os.environ.get("CC_TIMEOUT", "180"))
 CC_MAX_LEN = int(os.environ.get("CC_MAX_RESPONSE_LENGTH", "3500"))
 TMUX_SESSION = os.environ.get("TMUX_CC_SESSION", "cc-bridge")
 TMUX_CWD = os.environ.get("TMUX_CWD", "/data/whn")
 
-sender = DingTalkSender(ACCESS_TOKEN, SECRET)
+_sender: DingTalkSender | None = None
+
+
+def get_sender() -> DingTalkSender:
+    """Lazily construct the DingTalk sender after configuration is present."""
+
+    global _sender
+    if _sender is None:
+        _sender = DingTalkSender(*get_dingtalk_credentials())
+    return _sender
 
 _ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 _AT_RE = re.compile(r"@\S+\s*")

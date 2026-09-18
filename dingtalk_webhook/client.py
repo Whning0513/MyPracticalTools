@@ -8,7 +8,7 @@ Usage:
     send_markdown("Title", "# Hello\nContent")
 """
 
-from .sender import DingTalkSender
+from .sender import DingTalkSender, get_dingtalk_credentials
 
 _sender = None
 
@@ -16,18 +16,7 @@ _sender = None
 def _get_sender():
     global _sender
     if _sender is None:
-        from .sender import DingTalkSender
-        import os
-
-        token = os.environ.get(
-            "DINGTALK_ACCESS_TOKEN",
-            "9f2bd3f1fcff3c673de165149be67895980b69001db1096f6eb0da329070cb2c",
-        )
-        secret = os.environ.get(
-            "DINGTALK_SECRET",
-            "SEC534c62399a9f81870bde8558d8c9a74592c1020c93c9ac13054e49bd4e62943b",
-        )
-        _sender = DingTalkSender(token, secret)
+        _sender = DingTalkSender(*get_dingtalk_credentials())
     return _sender
 
 

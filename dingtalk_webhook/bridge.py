@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks
 
 from .cc_runner import (
-    sender,
+    get_sender,
     run_claude,
     format_reply,
     strip_at_mention,
@@ -40,7 +40,7 @@ async def run_claude_and_reply(prompt: str, sender_nick: str = ""):
         response = "CC 返回了空内容"
     body = format_reply(prompt, response, sender_nick)
     try:
-        sender.send_markdown(title=f"CC: {prompt[:50].replace(chr(10), ' ')}", text=body)
+        get_sender().send_markdown(title=f"CC: {prompt[:50].replace(chr(10), ' ')}", text=body)
     except Exception as e:
         print(f"[bridge] send_markdown failed: {e}")
 
