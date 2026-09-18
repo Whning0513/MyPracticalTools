@@ -292,7 +292,10 @@ async def process_message(chat_id: int, prompt: str, sender: str, status_msg_id:
                 _executor, send_telegram_message, chat_id,
                 f"⏳ 思考中 ({_CC_SNAPSHOT_DELAY}s 快照):\n\n{snapshot}",
             )
-        response = await cc_task
+        try:
+            response = await cc_task
+        except Exception as e:
+            response = f"CC 执行出错: {e}"
     except Exception as e:
         response = f"CC 执行出错: {e}"
 
