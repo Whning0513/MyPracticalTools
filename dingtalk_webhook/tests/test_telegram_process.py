@@ -27,6 +27,19 @@ class TelegramProcessTests(unittest.TestCase):
             "deleteMessage", {"chat_id": 1, "message_id": 42}
         )
 
+    def test_missing_status_message_does_not_trigger_invalid_cleanup(self) -> None:
+        async def succeed(_prompt: str) -> str:
+            return "answer"
+
+        with (
+            patch.object(telegram_bridge, "run_claude", new=succeed),
+            patch.object(telegram_bridge, "send_telegram_message", return_value=123),
+            patch.object(telegram_bridge, "_tg_post") as post,
+        ):
+            asyncio.run(telegram_bridge.process_message(1, "hello", "alice", None))
+
+        post.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

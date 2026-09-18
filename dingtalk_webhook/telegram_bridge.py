@@ -306,16 +306,18 @@ async def process_message(chat_id: int, prompt: str, sender: str, status_msg_id:
     result_id = await loop.run_in_executor(_executor, send_telegram_message, chat_id, body)
 
     if result_id is None:
-        await loop.run_in_executor(
-            _executor, _tg_post, "editMessageText",
-            {"chat_id": chat_id, "message_id": status_msg_id,
-             "text": f"CC 已回复，但发送失败（网络异常）\n\n{body[:1000]}"},
-        )
+        if status_msg_id is not None:
+            await loop.run_in_executor(
+                _executor, _tg_post, "editMessageText",
+                {"chat_id": chat_id, "message_id": status_msg_id,
+                 "text": f"CC 已回复，但发送失败（网络异常）\n\n{body[:1000]}"},
+            )
     else:
-        await loop.run_in_executor(
-            _executor, _tg_post, "deleteMessage",
-            {"chat_id": chat_id, "message_id": status_msg_id},
-        )
+        if status_msg_id is not None:
+            await loop.run_in_executor(
+                _executor, _tg_post, "deleteMessage",
+                {"chat_id": chat_id, "message_id": status_msg_id},
+            )
         if snapshot_msg_id is not None:
             await loop.run_in_executor(
                 _executor, _tg_post, "deleteMessage",
