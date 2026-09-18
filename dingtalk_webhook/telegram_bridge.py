@@ -53,6 +53,31 @@ _net = {
 }
 
 
+def split_message(text: str, max_length: int = TELEGRAM_MAX_LEN) -> list[str]:
+    """Split a Telegram message without producing an empty, non-progressing chunk."""
+
+    if max_length <= 0:
+        raise ValueError("max_length must be positive")
+    if len(text) <= max_length:
+        return [text]
+
+    chunks: list[str] = []
+    remaining = text
+    while len(remaining) > max_length:
+        split_at = remaining.rfind("\n", 0, max_length)
+        # A newline at position zero would leave the input unchanged after
+        # stripping. Force a hard split so every iteration makes progress.
+        if split_at <= 0:
+            split_at = max_length
+        chunk = remaining[:split_at].strip()
+        if chunk:
+            chunks.append(chunk)
+        remaining = remaining[split_at:].strip()
+    if remaining:
+        chunks.append(remaining)
+    return chunks
+
+
 def _is_network_error(err: str) -> bool:
     """Check if an error string looks like a network-level failure."""
     keywords = [
@@ -111,19 +136,7 @@ def _tg_post(path: str, body: dict) -> dict:
 def send_telegram_message(chat_id: int, text: str) -> int | None:
     """Send a text message via Telegram. Returns message_id or None."""
     text = simplify_tables(text)
-    if len(text) > TELEGRAM_MAX_LEN:
-        chunks = []
-        remaining = text
-        while len(remaining) > TELEGRAM_MAX_LEN:
-            split_at = remaining.rfind("\n", 0, TELEGRAM_MAX_LEN)
-            if split_at == -1:
-                split_at = TELEGRAM_MAX_LEN
-            chunks.append(remaining[:split_at].strip())
-            remaining = remaining[split_at:].strip()
-        if remaining:
-            chunks.append(remaining)
-    else:
-        chunks = [text]
+    chunks = split_message(text)
 
     last_id = None
     for chunk in chunks:
