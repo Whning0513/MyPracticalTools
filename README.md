@@ -18,6 +18,7 @@ automation workflows.
 | [Humanize Slides](.agents/skills/humanize-slides/SKILL.md) | Codex skill | Revises slides and PPT visuals only when the user explicitly asks to remove an AI-generated look. |
 | [Codex Session Audit](codexSessionAudit/README.md) | Python 3.10+ | Content-free inventory of Codex session archives, repeated task categories, and tool-call frequency. |
 | [Repository Release Audit](repoReleaseAudit/README.md) | Python 3.10+ | Preflight checks for secrets, machine paths, repository metadata, links, file sizes, and executable scripts. |
+| [artifactManifest](artifactManifest/README.md) | Python 3.10+ | Deterministic file manifests for checking copied, uploaded, or handed-off artifacts. |
 | [ACA small v0.2](datasets/ACA_small_v0.2/) | Zstandard JSONL | Versioned train/test dataset package with a manifest, blind-gate metadata, and audit reports. |
 | [Dataset design notes](docs/dataset-and-datapackage-design.md) | Markdown | Reproducibility, split isolation, replay, validator, reference, and release requirements for the ACA data package. |
 | [Session-derived tool backlog](docs/session-derived-tool-backlog.md) | Markdown | Privacy-safe evidence and priorities for the next reusable utilities. |
@@ -64,6 +65,26 @@ wdd tui /srv/download-state
 See the [watchdogDownloader documentation](watchdogDownloader/README.md) for
 the manifest format, retry behavior, verification, and tuning controls.
 
+### artifactManifest
+
+Install the standalone tool from this repository:
+
+```bash
+python -m pip install \
+  "git+https://github.com/Whning0513/MyPracticalTools.git#subdirectory=artifactManifest"
+```
+
+Create a deterministic inventory before moving an artifact, then verify it at
+the destination:
+
+```bash
+artifact-manifest create ./artifact ./artifact.manifest.json --exclude '*.tmp'
+artifact-manifest verify ./artifact ./artifact.manifest.json --exclude '*.tmp'
+```
+
+See the [artifactManifest documentation](artifactManifest/README.md) for the
+JSON format and exit codes.
+
 ## Dataset package
 
 `datasets/ACA_small_v0.2/` contains compressed train/test problems and
@@ -82,6 +103,7 @@ python -m pip install -e './dashboard[test]'
 python -m pytest dashboard/tests -q
 python -m pytest codexSessionAudit/tests -q
 python -m pytest repoReleaseAudit/tests -q
+python -m pytest artifactManifest/tests -q
 ```
 
 Check the Bash script and its interruption/resume integration tests:
