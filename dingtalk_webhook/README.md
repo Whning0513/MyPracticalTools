@@ -74,7 +74,7 @@ from dingtalk_webhook.client import notify
 notify(sender="a/b/c", content="Hello")
 ```
 
-默认使用项目自带的机器人凭证。
+必须通过 `DINGTALK_ACCESS_TOKEN` 和 `DINGTALK_SECRET` 提供凭证。仓库不包含默认凭证。
 
 ## API 端点
 
@@ -122,8 +122,8 @@ ngrok http 8001
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `DINGTALK_ACCESS_TOKEN` | (内置) | 机器人 token |
-| `DINGTALK_SECRET` | (内置) | 机器人 secret |
+| `DINGTALK_ACCESS_TOKEN` | (必填) | 机器人 token |
+| `DINGTALK_SECRET` | (必填) | 机器人 secret |
 | `CC_TIMEOUT` | 180 | CC 查询超时秒数 |
 | `CC_MAX_RESPONSE_LENGTH` | 18000 | 回复最大字符数 |
 

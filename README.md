@@ -104,6 +104,7 @@ python -m pytest dashboard/tests -q
 python -m pytest codexSessionAudit/tests -q
 python -m pytest repoReleaseAudit/tests -q
 python -m pytest artifactManifest/tests -q
+python -m unittest discover -s dingtalk_webhook/tests -v
 ```
 
 Check the Bash script and its interruption/resume integration tests:

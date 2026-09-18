@@ -96,6 +96,7 @@ python -m pytest dashboard/tests -q
 python -m pytest codexSessionAudit/tests -q
 python -m pytest repoReleaseAudit/tests -q
 python -m pytest artifactManifest/tests -q
+python -m unittest discover -s dingtalk_webhook/tests -v
 ```
 
 检查 Bash 脚本及其中断/续传集成测试：

@@ -5,7 +5,28 @@ import time
 import json
 import urllib.request
 import urllib.error
+import os
 from typing import Optional
+
+
+def get_dingtalk_credentials() -> tuple[str, str]:
+    """Read the DingTalk credentials from the environment.
+
+    Credentials are deliberately not optional: a public package must never
+    ship a fallback token or secret.
+    """
+
+    token = os.environ.get("DINGTALK_ACCESS_TOKEN", "").strip()
+    secret = os.environ.get("DINGTALK_SECRET", "").strip()
+    missing = []
+    if not token:
+        missing.append("DINGTALK_ACCESS_TOKEN")
+    if not secret:
+        missing.append("DINGTALK_SECRET")
+    if missing:
+        names = ", ".join(missing)
+        raise RuntimeError(f"Missing DingTalk credential environment variable(s): {names}")
+    return token, secret
 
 
 class DingTalkSender:
