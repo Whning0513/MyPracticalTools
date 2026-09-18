@@ -140,6 +140,12 @@ def _job_progress(config: DashboardConfig, spec: JobConfig, state: dict[str, Any
     saved, checkpoint, trainer_state = _latest_checkpoint(output_dir)
     observed, log_rate = _log_progress(_tail_text(_resolve(state.get("log"), config.project_root)),
                                        spec.total_steps)
+    # A resumed or stale trainer state can report a step beyond the configured
+    # run length.  Keep the snapshot internally consistent with total_steps;
+    # the terminal renderer already caps the visual bar, but consumers of the
+    # JSON snapshot also need bounded values.
+    saved = min(spec.total_steps, max(0, saved))
+    observed = min(spec.total_steps, max(0, observed))
     status = str(state.get("status") or "pending")
     if status == "complete":
         saved = observed = current = spec.total_steps
