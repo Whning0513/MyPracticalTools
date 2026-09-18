@@ -84,6 +84,31 @@ def test_snapshot_combines_live_and_recoverable_progress(tmp_path: Path):
     assert snapshot.allowed_gpus == (4, 7)
 
 
+def test_snapshot_clamps_checkpoint_progress_to_configured_total(tmp_path: Path):
+    config = load_config(config_file(tmp_path))
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+    jobs = {
+        name: {
+            "status": "running",
+            "output_dir": str(tmp_path / "outputs" / name),
+        }
+        for name in ("done", "live", "held")
+    }
+    write_json(config.run_dir / "status.json", {
+        "last_poll_at": "2999-01-01T00:00:00+00:00", "jobs": jobs
+    })
+    write_json(tmp_path / "outputs/live/checkpoint-150/trainer_state.json", {
+        "global_step": 150,
+    })
+
+    snapshot = build_snapshot(config)
+    live = {job.name: job for job in snapshot.jobs}["live"]
+    assert live.current_step == 100
+    assert live.saved_step == 100
+    assert live.percent == 100.0
+    assert snapshot.training_current == 100
+
+
 def test_evaluation_progress_and_duration_formatting(tmp_path: Path):
     config = load_config(config_file(tmp_path))
     (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
