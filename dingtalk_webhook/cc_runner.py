@@ -246,6 +246,20 @@ def _session_id_from_file(filename: str) -> str | None:
         return None
 
 
+def _session_files(limit: int | None = None) -> list[str]:
+    """Return session files in the same newest-first order shown to users."""
+
+    sessions_dir = os.path.expanduser("~/.claude/sessions")
+    if not os.path.isdir(sessions_dir):
+        return []
+    files = sorted(
+        [f for f in os.listdir(sessions_dir) if f.endswith(".json")],
+        key=lambda f: os.path.getmtime(os.path.join(sessions_dir, f)),
+        reverse=True,
+    )
+    return files if limit is None else files[:limit]
+
+
 def set_session_title(title: str) -> bool:
     """Rename the most recently modified CC session to *title*."""
     import json as _json
@@ -283,8 +297,18 @@ def resolve_session_id(user_input: str) -> str | None:
     if "-" in user_input and len(user_input) > 20:
         return user_input
 
-    # Treat as PID/filename — look up the UUID
-    for f in os.listdir(sessions_dir):
+    files = _session_files()
+
+    # Numeric input is the index shown by /sessions when it points to one.
+    if user_input.isdigit():
+        index = int(user_input)
+        if 1 <= index <= len(files):
+            session_id = _session_id_from_file(files[index - 1])
+            if session_id:
+                return session_id
+
+    # Otherwise treat it as a PID/filename prefix and look up the UUID.
+    for f in files:
         if not f.endswith(".json"):
             continue
         pid = f[:-5]
@@ -311,11 +335,7 @@ def list_sessions() -> str:
     if not os.path.isdir(sessions_dir):
         return "(无会话记录)"
 
-    files = sorted(
-        [f for f in os.listdir(sessions_dir) if f.endswith(".json")],
-        key=lambda f: os.path.getmtime(os.path.join(sessions_dir, f)),
-        reverse=True,
-    )[:15]
+    files = _session_files(limit=15)
 
     if not files:
         return "(无会话记录)"
