@@ -167,3 +167,4 @@ CC_MODE=tmux python -m dingtalk_webhook.telegram_bridge
 | `TELEGRAM_PROXY` | (空) | HTTP 代理地址 |
 | `CC_MODE` | print | print 或 tmux |
 | `CC_TIMEOUT` | 180 | CC 查询超时秒数 |
+| `TELEGRAM_OFFSET_FILE` | `~/.cache/dingtalk-webhook/telegram-offset` | 保存已处理的 update offset，避免重启后重复处理 |
