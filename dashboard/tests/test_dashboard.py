@@ -174,3 +174,19 @@ def test_malformed_evaluation_policy_container_does_not_crash_dashboard(tmp_path
     assert snapshot.phase == "evaluation"
     assert snapshot.evaluation_current == 0
     assert snapshot.evaluation_total == 60
+
+
+def test_malformed_job_attempts_do_not_crash_dashboard(tmp_path: Path):
+    config = load_config(config_file(tmp_path))
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+    jobs = {
+        name: {"status": "pending", "attempts": "not-a-number"}
+        for name in ("done", "live", "held")
+    }
+    write_json(config.run_dir / "status.json", {
+        "last_poll_at": "2999-01-01T00:00:00+00:00", "jobs": jobs
+    })
+
+    snapshot = build_snapshot(config)
+
+    assert all(job.attempts == 0 for job in snapshot.jobs)
