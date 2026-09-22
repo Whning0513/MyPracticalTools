@@ -135,6 +135,20 @@ def _checkpoint_rate(state: dict[str, Any]) -> float | None:
     return statistics.median(values[-20:]) if values else None
 
 
+def _nonnegative_integer(value: Any, default: int = 0) -> int:
+    """Read a scheduler counter without letting malformed state break a snapshot."""
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return max(0, value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return max(0, int(value.strip(), 10))
+        except ValueError:
+            return default
+    return default
+
+
 def _job_progress(config: DashboardConfig, spec: JobConfig, state: dict[str, Any]) -> JobProgress:
     output_dir = _resolve(state.get("output_dir"), config.project_root)
     saved, checkpoint, trainer_state = _latest_checkpoint(output_dir)
@@ -171,7 +185,7 @@ def _job_progress(config: DashboardConfig, spec: JobConfig, state: dict[str, Any
         observed_step=max(observed, saved), saved_step=saved, total_steps=spec.total_steps,
         percent=100.0 * current / spec.total_steps, seconds_per_step=rate, eta_seconds=eta,
         gpu=state.get("gpu"), checkpoint=str(checkpoint) if checkpoint else None,
-        attempts=int(state.get("attempts") or 0), detail=detail,
+        attempts=_nonnegative_integer(state.get("attempts")), detail=detail,
     )
 
 
