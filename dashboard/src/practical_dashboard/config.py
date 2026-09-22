@@ -39,10 +39,17 @@ class DashboardConfig:
 
 
 def _positive_integer(value: Any, field: str) -> int:
-    try:
-        result = int(value)
-    except (TypeError, ValueError) as error:
-        raise ValueError(f"{field} must be an integer") from error
+    if isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer")
+    if isinstance(value, int):
+        result = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            result = int(value.strip(), 10)
+        except ValueError as error:
+            raise ValueError(f"{field} must be an integer") from error
+    else:
+        raise ValueError(f"{field} must be an integer")
     if result < 1:
         raise ValueError(f"{field} must be positive")
     return result
@@ -51,11 +58,21 @@ def _positive_integer(value: Any, field: str) -> int:
 def _gpu_list(value: Any, field: str) -> tuple[int, ...]:
     if not isinstance(value, list) or not value:
         raise ValueError(f"{field} must be a non-empty list")
-    try:
-        result = tuple(dict.fromkeys(int(item) for item in value))
-    except (TypeError, ValueError) as error:
-        raise ValueError(f"{field} must contain integer GPU IDs") from error
-    return result
+    result: list[int] = []
+    for item in value:
+        if isinstance(item, bool):
+            raise ValueError(f"{field} must contain integer GPU IDs")
+        if isinstance(item, int):
+            result.append(item)
+            continue
+        if isinstance(item, str) and item.strip():
+            try:
+                result.append(int(item.strip(), 10))
+            except ValueError as error:
+                raise ValueError(f"{field} must contain integer GPU IDs") from error
+            continue
+        raise ValueError(f"{field} must contain integer GPU IDs")
+    return tuple(dict.fromkeys(result))
 
 
 def load_config(path: str | Path) -> DashboardConfig:
