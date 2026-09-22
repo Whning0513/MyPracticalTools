@@ -18,6 +18,7 @@ import subprocess
 import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from .cc_runner import (
     run_claude,
@@ -37,6 +38,12 @@ TELEGRAM_PROXY = [
 TELEGRAM_POLL_INTERVAL = int(os.environ.get("TELEGRAM_POLL_INTERVAL", "3"))
 TELEGRAM_MAX_LEN = 3800
 TELEGRAM_DOWN_THRESHOLD = 5  # consecutive failures before marking as down
+TELEGRAM_OFFSET_FILE = Path(
+    os.environ.get(
+        "TELEGRAM_OFFSET_FILE",
+        "~/.cache/dingtalk-webhook/telegram-offset",
+    )
+).expanduser()
 
 BASE_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
@@ -51,6 +58,24 @@ _net = {
     "was_down": False,
     "last_chat_id": None,
 }
+
+
+def load_polling_offset(path: str | Path = TELEGRAM_OFFSET_FILE) -> int:
+    """Load the last acknowledged Telegram update offset."""
+    try:
+        value = int(Path(path).expanduser().read_text(encoding="utf-8").strip(), 10)
+    except (OSError, TypeError, ValueError):
+        return 0
+    return max(0, value)
+
+
+def save_polling_offset(offset: int, path: str | Path = TELEGRAM_OFFSET_FILE) -> None:
+    """Persist an offset atomically so a restart does not replay old updates."""
+    target = Path(path).expanduser()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    temporary.write_text(str(max(0, offset)), encoding="utf-8")
+    temporary.replace(target)
 
 
 def split_message(text: str, max_length: int = TELEGRAM_MAX_LEN) -> list[str]:
@@ -329,7 +354,7 @@ async def process_message(chat_id: int, prompt: str, sender: str, status_msg_id:
 async def polling_loop():
     """Poll Telegram API with multi-proxy failover and network status tracking."""
     loop = asyncio.get_running_loop()
-    offset = 0
+    offset = load_polling_offset(TELEGRAM_OFFSET_FILE)
 
     print(f"[tg] 大狗bot polling started (CC_MODE={CC_MODE}, proxies={TELEGRAM_PROXY})")
 
@@ -373,7 +398,10 @@ async def polling_loop():
         _net["was_down"] = False
 
         for upd in result.get("result", []):
-            offset = upd["update_id"] + 1
+            update_id = upd.get("update_id")
+            if not isinstance(update_id, int) or isinstance(update_id, bool):
+                continue
+            offset = max(offset, update_id + 1)
             msg = upd.get("message", {})
             text = (msg.get("text") or "").strip()
             chat_id = msg.get("chat", {}).get("id")
@@ -404,6 +432,13 @@ async def polling_loop():
                 _executor, send_telegram_message, chat_id, "思考中...",
             )
             asyncio.create_task(process_message(chat_id, text, sender, status_result))
+
+        if result.get("result"):
+            try:
+                save_polling_offset(offset, TELEGRAM_OFFSET_FILE)
+            except OSError as error:
+                # A read-only home directory should not stop message polling.
+                print(f"[tg] cannot persist update offset: {error}")
 
         await asyncio.sleep(TELEGRAM_POLL_INTERVAL)
 
