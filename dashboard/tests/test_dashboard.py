@@ -49,6 +49,29 @@ def test_config_requires_run_dir(tmp_path: Path):
         load_config(path)
 
 
+def test_config_rejects_values_that_would_be_truncated_to_integers(tmp_path: Path):
+    path = config_file(tmp_path)
+    payload = json.loads(path.read_text())
+    payload["jobs"][0]["total_steps"] = 10.5
+    write_json(path, payload)
+    with pytest.raises(ValueError, match=r"jobs\[0\]\.total_steps must be an integer"):
+        load_config(path)
+
+    payload["jobs"][0]["total_steps"] = True
+    write_json(path, payload)
+    with pytest.raises(ValueError, match=r"jobs\[0\]\.total_steps must be an integer"):
+        load_config(path)
+
+
+def test_config_rejects_non_integer_gpu_ids(tmp_path: Path):
+    path = config_file(tmp_path)
+    payload = json.loads(path.read_text())
+    payload["gpu_ids"] = [4.5]
+    write_json(path, payload)
+    with pytest.raises(ValueError, match="gpu_ids must contain integer GPU IDs"):
+        load_config(path)
+
+
 def test_snapshot_combines_live_and_recoverable_progress(tmp_path: Path):
     config = load_config(config_file(tmp_path))
     (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
