@@ -9,6 +9,7 @@ import re
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
@@ -175,12 +176,30 @@ def user_request_text(payload: dict[str, object]) -> str:
     return text
 
 
+def _parse_timestamp(value: str) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _timestamp_before(left: str, right: str) -> bool:
+    left_parsed = _parse_timestamp(left)
+    right_parsed = _parse_timestamp(right)
+    if left_parsed is not None and right_parsed is not None:
+        return left_parsed < right_parsed
+    return left < right
+
+
 def update_timestamp(result: AuditResult, value: object) -> None:
     if not isinstance(value, str) or not value:
         return
-    if result.first_timestamp is None or value < result.first_timestamp:
+    if result.first_timestamp is None or _timestamp_before(value, result.first_timestamp):
         result.first_timestamp = value
-    if result.last_timestamp is None or value > result.last_timestamp:
+    if result.last_timestamp is None or _timestamp_before(result.last_timestamp, value):
         result.last_timestamp = value
 
 
