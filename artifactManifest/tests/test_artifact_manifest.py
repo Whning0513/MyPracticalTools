@@ -124,3 +124,23 @@ def test_cli_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
     (root / "data.txt").write_text("changed\n", encoding="utf-8")
     assert artifact_manifest.main(["verify", str(root), str(manifest_path)]) == 1
     assert "ERROR changed: data.txt" in capsys.readouterr().out
+
+
+def test_manifest_symlink_is_rejected_before_it_can_overwrite_target(tmp_path: Path) -> None:
+    root = tmp_path / "artifact"
+    root.mkdir()
+    (root / "data.txt").write_text("data\n", encoding="utf-8")
+    target = tmp_path / "outside.json"
+    target.write_text("keep me\n", encoding="utf-8")
+    manifest_path = root / "manifest.json"
+    try:
+        manifest_path.symlink_to(target)
+    except OSError as error:
+        pytest.skip(f"symbolic links are unavailable: {error}")
+
+    with pytest.raises(artifact_manifest.ManifestError, match="must not be a symbolic link"):
+        artifact_manifest.create_manifest(root, manifest_path)
+    assert target.read_text(encoding="utf-8") == "keep me\n"
+
+    with pytest.raises(artifact_manifest.ManifestError, match="must not be a symbolic link"):
+        artifact_manifest.verify_manifest(root, manifest_path)

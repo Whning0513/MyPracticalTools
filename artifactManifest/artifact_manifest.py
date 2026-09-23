@@ -124,6 +124,13 @@ def _media_type(path: str) -> str:
     return MEDIA_TYPES.get(Path(path).suffix.lower(), "application/octet-stream")
 
 
+def _manifest_path(path: os.PathLike[str] | str) -> Path:
+    manifest_path = Path(path).expanduser()
+    if manifest_path.is_symlink():
+        raise ManifestError(f"manifest path must not be a symbolic link: {manifest_path}")
+    return manifest_path
+
+
 def collect_files(
     root: os.PathLike[str] | str,
     *,
@@ -137,7 +144,7 @@ def collect_files(
     """
 
     root_path = _root_path(root)
-    output_path = Path(manifest_path).expanduser() if manifest_path is not None else None
+    output_path = _manifest_path(manifest_path) if manifest_path is not None else None
     files: list[ManifestFile] = []
     for relative, path in _iter_files(
         root_path, excludes=excludes, manifest_path=output_path
@@ -164,7 +171,7 @@ def create_manifest(
     """Create a deterministic JSON manifest and return its payload."""
 
     root_path = _root_path(root)
-    output_path = Path(output).expanduser()
+    output_path = _manifest_path(output)
     files = collect_files(root_path, excludes=excludes, manifest_path=output_path)
     payload: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
@@ -235,7 +242,7 @@ def verify_manifest(
     """Return human-readable differences between *root* and a manifest."""
 
     root_path = _root_path(root)
-    manifest_path = Path(manifest).expanduser()
+    manifest_path = _manifest_path(manifest)
     expected = _load_expected(manifest_path)
     actual = {
         item.path: item
