@@ -143,3 +143,13 @@ def test_injected_context_does_not_change_categories() -> None:
     assert "secret" not in text
     assert "config" not in text
     assert "environment-and-config" not in audit_module.matched_categories(text)
+
+
+def test_timestamps_are_ordered_by_instant_across_timezones() -> None:
+    result = audit_module.AuditResult()
+
+    audit_module.update_timestamp(result, "2026-08-01T00:30:00+02:00")
+    audit_module.update_timestamp(result, "2026-07-31T23:00:00Z")
+
+    assert result.first_timestamp == "2026-08-01T00:30:00+02:00"
+    assert result.last_timestamp == "2026-07-31T23:00:00Z"
