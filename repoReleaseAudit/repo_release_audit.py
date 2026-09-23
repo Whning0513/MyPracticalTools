@@ -105,7 +105,13 @@ def scan_markdown_links(root: Path, path: Path, relative: str, findings: list[Fi
             if not target or re.match(r"^(?:https?:|mailto:|data:)", target, re.IGNORECASE):
                 continue
             destination = root / target.lstrip("/") if target.startswith("/") else path.parent / target
-            if not destination.exists():
+            resolved = destination.resolve(strict=False)
+            try:
+                resolved.relative_to(root)
+            except ValueError:
+                findings.append(Finding("error", "link-outside-root", relative, line_number, target))
+                continue
+            if not resolved.exists():
                 findings.append(Finding("error", "broken-local-link", relative, line_number, target))
 
 

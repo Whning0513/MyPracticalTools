@@ -88,3 +88,16 @@ def test_inline_allow_marker_suppresses_reviewed_example(tmp_path: Path) -> None
     result = audit_module.audit(root)
 
     assert not any(item["code"] == "secret-pattern" for item in result["findings"])
+
+
+def test_reports_markdown_links_that_escape_the_worktree(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    (tmp_path / "outside.md").write_text("# outside\n", encoding="utf-8")
+    (root / "README.md").write_text("[outside](../outside.md)\n", encoding="utf-8")
+    git(root, "add", "--all")
+
+    result = audit_module.audit(root)
+
+    assert any(item["code"] == "link-outside-root" for item in result["findings"])
+    assert not any(item["code"] == "broken-local-link" for item in result["findings"])
