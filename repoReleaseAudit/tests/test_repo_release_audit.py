@@ -101,3 +101,43 @@ def test_reports_markdown_links_that_escape_the_worktree(tmp_path: Path) -> None
 
     assert any(item["code"] == "link-outside-root" for item in result["findings"])
     assert not any(item["code"] == "broken-local-link" for item in result["findings"])
+
+
+def test_symlinks_are_reported_without_scanning_their_targets(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    outside = tmp_path / "private.txt"
+    outside.write_text("ghp_" + "a" * 24, encoding="utf-8")
+    link = root / "linked.txt"
+    try:
+        link.symlink_to(outside)
+    except OSError as error:
+        import pytest
+
+        pytest.skip(f"symbolic links are unavailable: {error}")
+    git(root, "add", "linked.txt")
+
+    result = audit_module.audit(root)
+    findings = result["findings"]
+
+    assert any(item["code"] == "symlink" and item["path"] == "linked.txt" for item in findings)
+    assert not any(item["code"] == "secret-pattern" and item["path"] == "linked.txt" for item in findings)
+
+
+def test_dangling_tracked_symlink_is_not_reported_missing(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    link = root / "dangling.txt"
+    try:
+        link.symlink_to(tmp_path / "missing-target.txt")
+    except OSError as error:
+        import pytest
+
+        pytest.skip(f"symbolic links are unavailable: {error}")
+    git(root, "add", "dangling.txt")
+
+    result = audit_module.audit(root)
+    findings = result["findings"]
+
+    assert any(item["code"] == "symlink" and item["path"] == "dangling.txt" for item in findings)
+    assert not any(item["code"] == "missing-tracked-file" and item["path"] == "dangling.txt" for item in findings)
