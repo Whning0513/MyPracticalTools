@@ -224,6 +224,9 @@ def audit_source(path: Path, label: str, result: AuditResult) -> SourceStats:
                 except json.JSONDecodeError:
                     stats.malformed_records += 1
                     continue
+                if not isinstance(record, dict):
+                    stats.malformed_records += 1
+                    continue
                 update_timestamp(result, record.get("timestamp"))
                 payload = record.get("payload")
                 if not isinstance(payload, dict):

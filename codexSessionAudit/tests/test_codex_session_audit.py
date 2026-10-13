@@ -125,6 +125,18 @@ def test_malformed_candidate_can_fail_cli(tmp_path: Path, capsys) -> None:
     assert output["summary"]["malformed_records"] == 1
 
 
+def test_non_object_candidate_is_counted_as_malformed(tmp_path: Path) -> None:
+    session = tmp_path / "sessions" / "non-object.jsonl"
+    session.parent.mkdir(parents=True)
+    session.write_text('["response_item"]\n', encoding="utf-8")
+
+    result = audit_module.audit([tmp_path], ["archive"]).to_dict()
+
+    assert result["summary"]["records"] == 1
+    assert result["summary"]["malformed_records"] == 1
+    assert result["summary"]["user_messages"] == 0
+
+
 def test_injected_context_does_not_change_categories() -> None:
     payload = {
         "content": [
