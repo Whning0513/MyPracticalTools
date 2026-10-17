@@ -166,10 +166,10 @@ def send_telegram_message(chat_id: int, text: str) -> int | None:
     last_id = None
     for chunk in chunks:
         result = _tg_post("sendMessage", {"chat_id": chat_id, "text": chunk})
-        if result.get("ok"):
-            last_id = result["result"]["message_id"]
-        else:
+        if not result.get("ok"):
             print(f"[tg] send error: {result.get('error', result)}")
+            return None
+        last_id = result["result"]["message_id"]
         time.sleep(0.3)
     return last_id
 
