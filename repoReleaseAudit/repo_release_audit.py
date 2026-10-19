@@ -132,8 +132,9 @@ def audit(root: Path, max_file_mb: float = 50.0, strict: bool = False) -> dict[s
     github_limit = 100 * 1024 * 1024
     total_bytes = 0
     for relative, path in files:
+        is_symlink = modes.get(relative) == "120000"
         try:
-            size = path.stat().st_size
+            size = path.lstat().st_size if is_symlink else path.stat().st_size
         except OSError:
             findings.append(Finding("error", "missing-tracked-file", relative))
             continue
@@ -142,8 +143,9 @@ def audit(root: Path, max_file_mb: float = 50.0, strict: bool = False) -> dict[s
             findings.append(Finding("error", "github-file-limit", relative, detail=str(size)))
         elif size >= warn_bytes:
             findings.append(Finding("warning", "large-file", relative, detail=str(size)))
-        if modes.get(relative) == "120000":
+        if is_symlink:
             findings.append(Finding("warning", "symlink", relative))
+            continue
         if path.suffix.lower() in {"", ".sh"} and size <= 2 * 1024 * 1024:
             try:
                 first_line = path.open("rb").readline(256)
