@@ -49,7 +49,7 @@ Rules:
 - Use `0` only when the size is unknown. Such a file is complete only after curl exits successfully; its exact size still cannot be proven without SHA-256.
 - The fourth column is optional `sha256`.
 - Avoid spaces and tabs inside file names.
-- Absolute paths and paths containing `..` are rejected.
+- Absolute paths, paths containing `..`, and paths that traverse a symbolic link inside the output directory are rejected.
 
 ## Basic Usage
 

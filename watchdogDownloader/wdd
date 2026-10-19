@@ -157,6 +157,19 @@ sanitize_name() {
   printf "%s" "$1" | sed 's#[^A-Za-z0-9._-]#_#g'
 }
 
+validate_output_path() {
+  local file="$1"
+  local current="$OUT_DIR"
+  local component
+  local -a components=()
+
+  IFS='/' read -r -a components <<< "$file"
+  for component in "${components[@]}"; do
+    current="$current/$component"
+    [[ ! -L "$current" ]] || die "manifest output path must not traverse symbolic links: $file"
+  done
+}
+
 manifest_each() {
   # Usage: manifest_each callback_function
   #
@@ -176,6 +189,7 @@ manifest_each() {
     sha="${sha:-}"
     [[ "$file" != /* && "$file" != ".." && "$file" != ../* && "$file" != */../* && "$file" != */.. ]] \
       || die "manifest output path must stay below OUT_DIR: $file"
+    validate_output_path "$file"
     [[ "$expected" =~ ^[0-9]+$ ]] || die "expected-bytes must be a non-negative integer: $line"
 
     "$callback" "$url" "$file" "$expected" "$sha"
