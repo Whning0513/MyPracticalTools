@@ -10,6 +10,35 @@ from dingtalk_webhook.telegram_bridge import split_message
 
 
 class TelegramMessageTests(unittest.TestCase):
+    def test_proxy_summary_does_not_expose_proxy_urls_or_credentials(self) -> None:
+        proxy_urls = [
+            "http://alice:secret-one@proxy.example:7890",
+            "http://bob:secret-two@backup.example:7890",
+        ]
+        with patch.object(telegram_bridge, "TELEGRAM_PROXY", proxy_urls):
+            self.assertEqual(telegram_bridge.proxy_summary(), "2 configured proxies")
+
+        with patch.object(telegram_bridge, "TELEGRAM_PROXY", [""]):
+            self.assertEqual(telegram_bridge.proxy_summary(), "direct")
+
+    def test_status_does_not_send_proxy_credentials(self) -> None:
+        async def run_status() -> None:
+            loop = asyncio.get_running_loop()
+            with (
+                patch.object(telegram_bridge, "CC_MODE", "tmux"),
+                patch.object(telegram_bridge, "TELEGRAM_PROXY", ["http://alice:secret@proxy.example:7890"]),
+                patch.object(telegram_bridge, "get_tmux"),
+                patch.object(telegram_bridge, "send_telegram_message") as send,
+            ):
+                self.assertTrue(await telegram_bridge.handle_command(1, "/status", loop))
+                message = send.call_args.args[1]
+                self.assertIn("1 configured proxy", message)
+                self.assertNotIn("alice", message)
+                self.assertNotIn("secret", message)
+                self.assertNotIn("proxy.example", message)
+
+        asyncio.run(run_status())
+
     def test_allowed_user_ids_are_validated(self) -> None:
         self.assertEqual(
             telegram_bridge.parse_allowed_user_ids("123, 456,123"),

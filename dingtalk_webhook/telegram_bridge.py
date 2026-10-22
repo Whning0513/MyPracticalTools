@@ -99,6 +99,14 @@ def is_authorized_user(user_id: object) -> bool:
     )
 
 
+def proxy_summary() -> str:
+    configured = sum(bool(proxy) for proxy in TELEGRAM_PROXY)
+    if configured == 0:
+        return "direct"
+    noun = "proxy" if configured == 1 else "proxies"
+    return f"{configured} configured {noun}"
+
+
 def save_polling_offset(offset: int, path: str | Path = TELEGRAM_OFFSET_FILE) -> None:
     """Persist an offset atomically so a restart does not replay old updates."""
     target = Path(path).expanduser()
@@ -290,7 +298,7 @@ async def handle_command(chat_id: int, text: str, loop) -> bool:
 
     elif text == "/status":
         print(f"[tg] /status")
-        status = f"CC 模式: {CC_MODE}\n网络状态: {'🟢 正常' if _net['failures'] < TELEGRAM_DOWN_THRESHOLD else '🔴 异常 (' + str(_net['failures']) + '次连续失败)'}\n代理: {TELEGRAM_PROXY}"
+        status = f"CC 模式: {CC_MODE}\n网络状态: {'🟢 正常' if _net['failures'] < TELEGRAM_DOWN_THRESHOLD else '🔴 异常 (' + str(_net['failures']) + '次连续失败)'}\n代理: {proxy_summary()}"
         await loop.run_in_executor(_executor, reply, status)
 
     elif text.startswith("/sh ") or text.startswith("/sh\n"):
@@ -386,7 +394,7 @@ async def polling_loop():
     loop = asyncio.get_running_loop()
     offset = load_polling_offset(TELEGRAM_OFFSET_FILE)
 
-    print(f"[tg] 大狗bot polling started (CC_MODE={CC_MODE}, proxies={TELEGRAM_PROXY})")
+    print(f"[tg] 大狗bot polling started (CC_MODE={CC_MODE}, proxies={proxy_summary()})")
 
     while True:
         try:
@@ -470,7 +478,7 @@ async def polling_loop():
                 await loop.run_in_executor(
                     _executor, send_telegram_message,
                     chat_id,
-                    f"大狗bot 已就绪 🐕\nCC 模式: {CC_MODE}\n代理: {TELEGRAM_PROXY}\n直接发消息交互。",
+                    f"大狗bot 已就绪 🐕\nCC 模式: {CC_MODE}\n代理: {proxy_summary()}\n直接发消息交互。",
                 )
                 continue
 
