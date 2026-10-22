@@ -147,6 +147,7 @@ Telegram 搜 @BotFather，发 `/newbot`，按要求取名，拿到 token。
 ```bash
 export TELEGRAM_BOT_TOKEN="你的token"
 export TELEGRAM_PROXY="http://127.0.0.1:7890"   # 如果需要代理
+export TELEGRAM_ALLOWED_USER_IDS="123456789"      # 允许操作 Bot 的 Telegram user ID，可逗号分隔
 CC_MODE=print python -m dingtalk_webhook.telegram_bridge
 
 # 有状态模式（上下文持续保留）
@@ -159,12 +160,15 @@ CC_MODE=tmux python -m dingtalk_webhook.telegram_bridge
 手机 Telegram → @bot 发消息 → polling 拉到 → claude -p/tmux → 回复到 Telegram
 ```
 
+只有 `TELEGRAM_ALLOWED_USER_IDS` 中的用户可以使用 Bot；未配置时，其他消息不会触发 CC 或 shell 命令。首次配置前，私聊 Bot 发送 `/whoami` 查看自己的 user ID，再把它写入环境变量并重启。
+
 ### 环境变量
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `TELEGRAM_BOT_TOKEN` | (必填) | BotFather 给的 token |
 | `TELEGRAM_PROXY` | (空) | HTTP 代理地址 |
+| `TELEGRAM_ALLOWED_USER_IDS` | (空) | 允许使用 Bot 的 Telegram user ID，逗号分隔；留空时除私聊 `/whoami` 外不处理消息 |
 | `CC_MODE` | print | print 或 tmux |
 | `CC_TIMEOUT` | 180 | CC 查询超时秒数 |
 | `TELEGRAM_OFFSET_FILE` | `~/.cache/dingtalk-webhook/telegram-offset` | 保存已处理的 update offset，避免重启后重复处理 |
