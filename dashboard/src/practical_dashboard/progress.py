@@ -233,8 +233,19 @@ def _heartbeat_warning(status: dict[str, Any]) -> str | None:
 def build_snapshot(config: DashboardConfig) -> DashboardSnapshot:
     training = _read_json(config.run_dir / config.training_status_file)
     evaluation = _read_json(config.run_dir / config.evaluation_status_file)
-    job_states = training.get("jobs") or {}
-    jobs = tuple(_job_progress(config, spec, job_states.get(spec.name) or {}) for spec in config.jobs)
+    raw_job_states = training.get("jobs", {})
+    malformed_job_state = not isinstance(raw_job_states, dict)
+    job_states = raw_job_states if isinstance(raw_job_states, dict) else {}
+    job_progress: list[JobProgress] = []
+    for spec in config.jobs:
+        state = job_states.get(spec.name)
+        if state is None and spec.name not in job_states:
+            state = {}
+        elif not isinstance(state, dict):
+            state = {}
+            malformed_job_state = True
+        job_progress.append(_job_progress(config, spec, state))
+    jobs = tuple(job_progress)
     training_current = sum(job.current_step for job in jobs)
     training_total = sum(job.total_steps for job in jobs)
     evaluation_current, evaluation_total = _evaluation_progress(config, evaluation)
@@ -275,6 +286,10 @@ def build_snapshot(config: DashboardConfig) -> DashboardSnapshot:
         _stage("report", "Final report", "complete" if report_ready else "waiting", int(report_ready), 1),
     )
     warnings: list[str] = []
+    if malformed_job_state:
+        warnings.append(
+            "Training status contains malformed job state; affected jobs are shown as pending"
+        )
     heartbeat = _heartbeat_warning(training)
     if heartbeat:
         warnings.append(heartbeat)

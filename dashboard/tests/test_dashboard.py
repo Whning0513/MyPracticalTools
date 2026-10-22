@@ -190,3 +190,25 @@ def test_malformed_job_attempts_do_not_crash_dashboard(tmp_path: Path):
     snapshot = build_snapshot(config)
 
     assert all(job.attempts == 0 for job in snapshot.jobs)
+
+
+@pytest.mark.parametrize(
+    "job_states",
+    [
+        ["stale schema"],
+        {"live": "not an object"},
+    ],
+)
+def test_malformed_training_job_state_does_not_crash_dashboard(
+    tmp_path: Path, job_states: object
+):
+    config = load_config(config_file(tmp_path))
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+    write_json(config.run_dir / "status.json", {
+        "last_poll_at": "2999-01-01T00:00:00+00:00", "jobs": job_states
+    })
+
+    snapshot = build_snapshot(config)
+
+    assert all(job.status == "pending" and job.current_step == 0 for job in snapshot.jobs)
+    assert any("malformed job state" in warning for warning in snapshot.warnings)
