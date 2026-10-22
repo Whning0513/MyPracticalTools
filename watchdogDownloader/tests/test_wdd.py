@@ -186,6 +186,44 @@ class WddIntegrationTest(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("must stay below OUT_DIR", completed.stderr)
 
+    def test_manifest_cannot_escape_through_output_directory_symlink(self) -> None:
+        outside = self.root / "outside"
+        outside.mkdir()
+        link = self.output / "linked"
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except OSError as error:
+            self.skipTest(f"symbolic links are unavailable: {error}")
+
+        self.manifest.write_text(
+            "https://example.invalid/payload.bin\tlinked/payload.bin\t10\t\n",
+            encoding="utf-8",
+        )
+        completed = self.run_wdd("run", self.project, check=False)
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("must not traverse symbolic links", completed.stderr)
+        self.assertFalse((outside / "payload.bin").exists())
+
+    def test_manifest_rejects_symlinked_output_file(self) -> None:
+        outside_file = self.root / "outside.bin"
+        outside_file.write_bytes(b"keep")
+        link = self.output / "payload.bin"
+        try:
+            link.symlink_to(outside_file)
+        except OSError as error:
+            self.skipTest(f"symbolic links are unavailable: {error}")
+
+        self.manifest.write_text(
+            "https://example.invalid/payload.bin\tpayload.bin\t10\t\n",
+            encoding="utf-8",
+        )
+        completed = self.run_wdd("run", self.project, check=False)
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("must not traverse symbolic links", completed.stderr)
+        self.assertEqual(outside_file.read_bytes(), b"keep")
+
     def test_stale_run_lock_is_reclaimed(self) -> None:
         lock = self.project / ".wdd" / "run.lock"
         lock.mkdir()
