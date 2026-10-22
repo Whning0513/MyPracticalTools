@@ -35,6 +35,28 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_PROXY = [
     p.strip() for p in os.environ.get("TELEGRAM_PROXY", "").split(",") if p.strip()
 ]
+
+
+def parse_allowed_user_ids(value: str) -> frozenset[int]:
+    """Parse the Telegram user IDs allowed to run bot commands."""
+    result: set[int] = set()
+    for item in value.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            user_id = int(item, 10)
+        except ValueError as error:
+            raise ValueError("TELEGRAM_ALLOWED_USER_IDS must be comma-separated integers") from error
+        if user_id <= 0:
+            raise ValueError("TELEGRAM_ALLOWED_USER_IDS must contain positive user IDs")
+        result.add(user_id)
+    return frozenset(result)
+
+
+TELEGRAM_ALLOWED_USER_IDS = parse_allowed_user_ids(
+    os.environ.get("TELEGRAM_ALLOWED_USER_IDS", "")
+)
 TELEGRAM_POLL_INTERVAL = int(os.environ.get("TELEGRAM_POLL_INTERVAL", "3"))
 TELEGRAM_MAX_LEN = 3800
 TELEGRAM_DOWN_THRESHOLD = 5  # consecutive failures before marking as down
@@ -67,6 +89,14 @@ def load_polling_offset(path: str | Path = TELEGRAM_OFFSET_FILE) -> int:
     except (OSError, TypeError, ValueError):
         return 0
     return max(0, value)
+
+
+def is_authorized_user(user_id: object) -> bool:
+    return (
+        isinstance(user_id, int)
+        and not isinstance(user_id, bool)
+        and user_id in TELEGRAM_ALLOWED_USER_IDS
+    )
 
 
 def save_polling_offset(offset: int, path: str | Path = TELEGRAM_OFFSET_FILE) -> None:
@@ -403,15 +433,38 @@ async def polling_loop():
                 continue
             offset = max(offset, update_id + 1)
             msg = upd.get("message", {})
+            if not isinstance(msg, dict):
+                continue
             text = (msg.get("text") or "").strip()
-            chat_id = msg.get("chat", {}).get("id")
+            chat = msg.get("chat", {})
             from_user = msg.get("from", {})
+            if not isinstance(chat, dict) or not isinstance(from_user, dict):
+                continue
+            chat_id = chat.get("id")
+            user_id = from_user.get("id")
             sender = from_user.get("first_name") or from_user.get("username") or str(chat_id)
-
-            _net["last_chat_id"] = chat_id
 
             if not text or not chat_id:
                 continue
+
+            if (
+                text == "/whoami"
+                and chat.get("type") == "private"
+                and isinstance(user_id, int)
+                and not isinstance(user_id, bool)
+            ):
+                await loop.run_in_executor(
+                    _executor, send_telegram_message,
+                    chat_id,
+                    f"你的 Telegram user ID 是 {user_id}。设置 TELEGRAM_ALLOWED_USER_IDS 后即可启用其他命令。",
+                )
+                continue
+
+            if not is_authorized_user(user_id):
+                print(f"[tg] ignored update from unauthorized Telegram user {user_id}")
+                continue
+
+            _net["last_chat_id"] = chat_id
 
             if text == "/start":
                 await loop.run_in_executor(
@@ -447,6 +500,9 @@ def main():
     if not TELEGRAM_BOT_TOKEN:
         print("错误: 请设置 TELEGRAM_BOT_TOKEN 环境变量")
         return 1
+
+    if not TELEGRAM_ALLOWED_USER_IDS:
+        print("[tg] TELEGRAM_ALLOWED_USER_IDS 未配置；只有私聊 /whoami 可用，其他消息会被忽略。")
 
     print(f"[tg] 大狗bot 启动中 (CC_MODE={CC_MODE})...")
 
