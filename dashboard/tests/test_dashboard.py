@@ -212,3 +212,20 @@ def test_malformed_training_job_state_does_not_crash_dashboard(
 
     assert all(job.status == "pending" and job.current_step == 0 for job in snapshot.jobs)
     assert any("malformed job state" in warning for warning in snapshot.warnings)
+
+
+def test_malformed_checkpoint_global_step_falls_back_to_directory_step(tmp_path: Path):
+    config = load_config(config_file(tmp_path))
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+    checkpoint = tmp_path / "outputs/live/checkpoint-40"
+    write_json(checkpoint / "trainer_state.json", {"global_step": "not-a-number"})
+    write_json(config.run_dir / "status.json", {
+        "last_poll_at": "2999-01-01T00:00:00+00:00",
+        "jobs": {"live": {"status": "running", "output_dir": str(checkpoint.parent)}},
+    })
+
+    snapshot = build_snapshot(config)
+
+    live = {job.name: job for job in snapshot.jobs}["live"]
+    assert live.saved_step == 40
+    assert live.current_step == 40

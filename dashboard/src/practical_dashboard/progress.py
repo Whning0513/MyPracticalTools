@@ -109,7 +109,10 @@ def _latest_checkpoint(output_dir: Path | None) -> tuple[int, Path | None, dict[
         return 0, None, {}
     step, checkpoint = max(candidates)
     state = _read_json(checkpoint / "trainer_state.json")
-    return int(state.get("global_step", step)), checkpoint, state
+    saved_step = state.get("global_step")
+    if isinstance(saved_step, bool) or not isinstance(saved_step, int) or saved_step < 0:
+        saved_step = step
+    return saved_step, checkpoint, state
 
 
 def _log_progress(text: str, total: int) -> tuple[int, float | None]:
