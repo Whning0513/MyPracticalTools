@@ -235,6 +235,9 @@ def audit_source(path: Path, label: str, result: AuditResult) -> SourceStats:
                     update_timestamp(result, payload.get("timestamp"))
                     continue
                 payload_type = payload.get("type")
+                if not isinstance(payload_type, str):
+                    stats.malformed_records += 1
+                    continue
                 if payload_type == "message":
                     role = payload.get("role")
                     if role == "user":

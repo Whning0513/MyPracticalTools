@@ -165,3 +165,22 @@ def test_timestamps_are_ordered_by_instant_across_timezones() -> None:
 
     assert result.first_timestamp == "2026-08-01T00:30:00+02:00"
     assert result.last_timestamp == "2026-07-31T23:00:00Z"
+
+
+def test_non_string_payload_type_is_counted_and_skipped(tmp_path: Path) -> None:
+    session = tmp_path / "sessions" / "malformed.jsonl"
+    session.parent.mkdir(parents=True)
+    records = [
+        {"type": "response_item", "payload": {"type": []}},
+        {
+            "type": "response_item",
+            "payload": {"type": "message", "role": "user", "text": "hello"},
+        },
+    ]
+    session.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
+
+    result = audit_module.audit([tmp_path]).to_dict()
+
+    assert result["summary"]["records"] == 2
+    assert result["summary"]["malformed_records"] == 1
+    assert result["summary"]["user_messages"] == 1
