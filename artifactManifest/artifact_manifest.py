@@ -88,7 +88,18 @@ def _iter_files(
     manifest_resolved = (
         manifest_path.resolve(strict=False) if manifest_path is not None else None
     )
-    for current, directories, filenames in os.walk(root, topdown=True, followlinks=False):
+    def fail_on_walk_error(error: OSError) -> None:
+        failed_path = Path(os.fsdecode(error.filename)) if error.filename else root
+        try:
+            relative_path = failed_path.relative_to(root).as_posix()
+        except ValueError:
+            relative_path = str(failed_path)
+        detail = error.strerror or str(error)
+        raise ManifestError(f"cannot read directory {relative_path}: {detail}") from error
+
+    for current, directories, filenames in os.walk(
+        root, topdown=True, onerror=fail_on_walk_error, followlinks=False
+    ):
         current_path = Path(current)
         directories.sort()
         filenames.sort()

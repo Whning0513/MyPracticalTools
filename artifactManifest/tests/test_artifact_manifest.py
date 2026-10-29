@@ -144,3 +144,24 @@ def test_manifest_symlink_is_rejected_before_it_can_overwrite_target(tmp_path: P
 
     with pytest.raises(artifact_manifest.ManifestError, match="must not be a symbolic link"):
         artifact_manifest.verify_manifest(root, manifest_path)
+
+
+def test_create_manifest_fails_when_os_walk_skips_unreadable_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "artifact"
+    root.mkdir()
+    (root / "readable.txt").write_text("readable\n", encoding="utf-8")
+    manifest_path = root / "manifest.json"
+    unreadable = root / "private"
+
+    def walk_with_error(path, *, topdown, followlinks, onerror=None):
+        if onerror is not None:
+            onerror(PermissionError(13, "Permission denied", str(unreadable)))
+        return iter(())
+
+    monkeypatch.setattr(artifact_manifest.os, "walk", walk_with_error)
+
+    with pytest.raises(artifact_manifest.ManifestError, match="cannot read directory"):
+        artifact_manifest.create_manifest(root, manifest_path)
+    assert not manifest_path.exists()
