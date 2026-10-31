@@ -184,3 +184,17 @@ def test_non_string_payload_type_is_counted_and_skipped(tmp_path: Path) -> None:
     assert result["summary"]["records"] == 2
     assert result["summary"]["malformed_records"] == 1
     assert result["summary"]["user_messages"] == 1
+
+
+def test_invalid_timestamp_does_not_leak_into_report(tmp_path: Path) -> None:
+    session = tmp_path / "sessions" / "one.jsonl"
+    session.parent.mkdir(parents=True)
+    records = [
+        {"type": "session_meta", "timestamp": "sensitive-invalid-timestamp", "payload": {}},
+        {"type": "session_meta", "timestamp": "2026-10-31T00:00:00Z", "payload": {}},
+    ]
+    session.write_text("\n".join(json.dumps(item) for item in records), encoding="utf-8")
+    result = audit_module.audit([tmp_path]).to_dict()
+    assert result["summary"]["first_timestamp"] == "2026-10-31T00:00:00Z"
+    assert result["summary"]["last_timestamp"] == "2026-10-31T00:00:00Z"
+    assert "sensitive-invalid-timestamp" not in json.dumps(result)
