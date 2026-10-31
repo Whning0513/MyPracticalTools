@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -118,6 +119,8 @@ def _iter_files(
                 continue
             if _matches_exclude(relative, excludes):
                 continue
+            if not stat.S_ISREG(candidate.lstat().st_mode):
+                raise ManifestError(f"not a regular file: {relative}")
             yield relative, candidate
 
 
