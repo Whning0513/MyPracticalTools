@@ -167,3 +167,20 @@ def test_invalid_utf8_text_is_not_silently_skipped(tmp_path: Path) -> None:
     git(root, "add", "invalid.txt")
     result = audit_module.audit(root)
     assert any(item["code"] == "unreadable-text" and item["path"] == "invalid.txt" for item in result["findings"])
+
+
+def test_git_status_failure_is_not_reported_as_clean(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    original = audit_module.run_git
+
+    def run_git_with_failed_status(root: Path, *args: str):
+        if args == ("status", "--porcelain"):
+            return subprocess.CompletedProcess(args, 1, stdout=b"", stderr=b"private git error")
+        return original(root, *args)
+
+    monkeypatch.setattr(audit_module, "run_git", run_git_with_failed_status)
+    result = audit_module.audit(root)
+    assert result["summary"]["dirty"] is True
+    assert any(item["code"] == "git-status-failed" and item["level"] == "error" for item in result["findings"])
+    assert "private git error" not in audit_module.render_text(result)

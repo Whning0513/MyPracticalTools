@@ -158,9 +158,13 @@ def audit(root: Path, max_file_mb: float = 50.0, strict: bool = False) -> dict[s
         scan_markdown_links(root, path, relative, findings)
 
     status = run_git(root, "status", "--porcelain")
-    dirty = bool(status.stdout.strip())
-    if dirty:
-        findings.append(Finding("error" if strict else "warning", "dirty-worktree", "."))
+    if status.returncode:
+        dirty = True
+        findings.append(Finding("error", "git-status-failed", "."))
+    else:
+        dirty = bool(status.stdout.strip())
+        if dirty:
+            findings.append(Finding("error" if strict else "warning", "dirty-worktree", "."))
 
     findings.sort(key=lambda item: (item.level != "error", item.code, item.path, item.line or 0))
     errors = sum(item.level == "error" for item in findings)
