@@ -205,9 +205,14 @@ def update_timestamp(result: AuditResult, value: object) -> None:
 
 def audit_source(path: Path, label: str, result: AuditResult) -> SourceStats:
     files = discover_files(path)
-    stats = SourceStats(label=label, files=len(files), bytes=sum(item.stat().st_size for item in files))
+    stats = SourceStats(label=label, files=len(files))
     for session_file in files:
         stats.sessions += 1
+        try:
+            stats.bytes += session_file.stat().st_size
+        except OSError:
+            stats.malformed_records += 1
+            continue
         session_categories: set[str] = set()
         try:
             handle = session_file.open("r", encoding="utf-8", errors="replace")
