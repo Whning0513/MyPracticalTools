@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import stat
 import subprocess
 import sys
 from dataclasses import asdict, dataclass
@@ -136,9 +137,10 @@ def audit(root: Path, max_file_mb: float = 50.0, strict: bool = False) -> dict[s
     github_limit = 100 * 1024 * 1024
     total_bytes = 0
     for relative, path in files:
-        is_symlink = modes.get(relative) == "120000"
         try:
-            size = path.lstat().st_size if is_symlink else path.stat().st_size
+            metadata = path.lstat()
+            is_symlink = modes.get(relative) == "120000" or stat.S_ISLNK(metadata.st_mode)
+            size = metadata.st_size
         except OSError:
             findings.append(Finding("error", "missing-tracked-file", relative))
             continue
