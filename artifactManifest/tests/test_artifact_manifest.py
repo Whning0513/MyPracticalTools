@@ -165,3 +165,35 @@ def test_create_manifest_fails_when_os_walk_skips_unreadable_directory(
     with pytest.raises(artifact_manifest.ManifestError, match="cannot read directory"):
         artifact_manifest.create_manifest(root, manifest_path)
     assert not manifest_path.exists()
+
+
+def test_special_file_is_rejected_before_hashing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import stat
+    from types import SimpleNamespace
+
+    root = tmp_path / "artifact"
+    root.mkdir()
+    target = root / "pipe"
+    target.write_text("placeholder", encoding="utf-8")
+    original_lstat = Path.lstat
+
+    def fake_lstat(path: Path):
+        if path == target:
+            return SimpleNamespace(st_mode=stat.S_IFIFO)
+        return original_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(artifact_manifest.ManifestError, match="not a regular file: pipe"):
+        artifact_manifest.collect_files(root)
+    assert artifact_manifest.collect_files(root, excludes=["pipe"]) == []
+
+
+@pytest.mark.skipif(not hasattr(__import__("os"), "mkfifo"), reason="named pipes unavailable")
+def test_named_pipe_does_not_block_manifest_creation(tmp_path: Path) -> None:
+    import os
+
+    root = tmp_path / "artifact"
+    root.mkdir()
+    os.mkfifo(root / "pipe")
+    with pytest.raises(artifact_manifest.ManifestError, match="not a regular file: pipe"):
+        artifact_manifest.collect_files(root)
