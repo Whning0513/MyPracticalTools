@@ -193,3 +193,45 @@ def test_oversized_text_is_reported_as_not_scanned(tmp_path: Path) -> None:
     git(root, "add", "large.txt")
     result = audit_module.audit(root)
     assert any(item["code"] == "text-too-large-to-scan" and item["path"] == "large.txt" and item["level"] == "error" for item in result["findings"])
+
+
+def test_worktree_symlink_is_not_scanned_when_index_has_regular_file(tmp_path: Path, monkeypatch) -> None:
+    import stat
+    from types import SimpleNamespace
+
+    root = tmp_path / "repo"
+    init_repo(root)
+    target = root / "settings.txt"
+    original_lstat = Path.lstat
+    original_read = Path.read_text
+
+    def link_lstat(path: Path):
+        if path == target:
+            return SimpleNamespace(st_mode=stat.S_IFLNK, st_size=1)
+        return original_lstat(path)
+
+    def no_link_reads(path: Path, *args, **kwargs):
+        assert path != target
+        return original_read(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", link_lstat)
+    monkeypatch.setattr(Path, "read_text", no_link_reads)
+    result = audit_module.audit(root)
+    assert any(item["code"] == "symlink" and item["path"] == "settings.txt" for item in result["findings"])
+
+
+def test_unstaged_symlink_does_not_read_outside_target(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("ghp_" + "b" * 24, encoding="utf-8")
+    target = root / "settings.txt"
+    target.unlink()
+    try:
+        target.symlink_to(outside)
+    except OSError as error:
+        import pytest
+        pytest.skip(f"symlinks unavailable: {error}")
+    result = audit_module.audit(root)
+    assert any(item["code"] == "symlink" and item["path"] == "settings.txt" for item in result["findings"])
+    assert not any(item["code"] == "secret-pattern" and item["path"] == "settings.txt" for item in result["findings"])
