@@ -197,3 +197,17 @@ def test_named_pipe_does_not_block_manifest_creation(tmp_path: Path) -> None:
     os.mkfifo(root / "pipe")
     with pytest.raises(artifact_manifest.ManifestError, match="not a regular file: pipe"):
         artifact_manifest.collect_files(root)
+
+
+def test_invalid_utf8_manifest_reports_error_without_traceback(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = tmp_path / "artifact"
+    root.mkdir()
+    manifest = tmp_path / "invalid.json"
+    manifest.write_bytes(b"\xff\xfe")
+
+    with pytest.raises(artifact_manifest.ManifestError, match="cannot read manifest"):
+        artifact_manifest.verify_manifest(root, manifest)
+    assert artifact_manifest.main(["verify", str(root), str(manifest)]) == 2
+    captured = capsys.readouterr()
+    assert "cannot read manifest" in captured.err
+    assert "Traceback" not in captured.err

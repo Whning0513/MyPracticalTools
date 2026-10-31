@@ -213,7 +213,7 @@ def _validate_relative_path(value: object) -> str:
 def _load_expected(manifest_path: Path) -> dict[str, ManifestFile]:
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ManifestError(f"cannot read manifest {manifest_path}: {exc}") from exc
     if not isinstance(payload, dict):
         raise ManifestError("manifest must contain a JSON object")
