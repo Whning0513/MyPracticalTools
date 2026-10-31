@@ -195,7 +195,7 @@ def _timestamp_before(left: str, right: str) -> bool:
 
 
 def update_timestamp(result: AuditResult, value: object) -> None:
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or not value or _parse_timestamp(value) is None:
         return
     if result.first_timestamp is None or _timestamp_before(value, result.first_timestamp):
         result.first_timestamp = value
