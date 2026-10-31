@@ -221,3 +221,16 @@ def test_schema_version_requires_integer(tmp_path: Path, version: object) -> Non
     manifest.write_text(json.dumps({"schema_version": version, "root": ".", "files": []}), encoding="utf-8")
     with pytest.raises(artifact_manifest.ManifestError, match="unsupported schema_version"):
         artifact_manifest.verify_manifest(root, manifest)
+
+
+@pytest.mark.parametrize("content", [
+    '{"schema_version": 1, "schema_version": 1, "root": ".", "files": []}',
+    '{"schema_version": 1, "root": ".", "files": [{"path":"x", "path":"y"}]}',
+])
+def test_manifest_rejects_duplicate_json_keys(tmp_path: Path, content: str) -> None:
+    root = tmp_path / "artifact"
+    root.mkdir()
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(content, encoding="utf-8")
+    with pytest.raises(artifact_manifest.ManifestError, match="duplicate JSON key"):
+        artifact_manifest.verify_manifest(root, manifest)

@@ -210,9 +210,18 @@ def _validate_relative_path(value: object) -> str:
     return value
 
 
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ManifestError(f"duplicate JSON key: {key!r}")
+        result[key] = value
+    return result
+
+
 def _load_expected(manifest_path: Path) -> dict[str, ManifestFile]:
     try:
-        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"), object_pairs_hook=_unique_json_object)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ManifestError(f"cannot read manifest {manifest_path}: {exc}") from exc
     if not isinstance(payload, dict):
