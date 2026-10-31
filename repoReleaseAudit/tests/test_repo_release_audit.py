@@ -141,3 +141,29 @@ def test_dangling_tracked_symlink_is_not_reported_missing(tmp_path: Path) -> Non
 
     assert any(item["code"] == "symlink" and item["path"] == "dangling.txt" for item in findings)
     assert not any(item["code"] == "missing-tracked-file" and item["path"] == "dangling.txt" for item in findings)
+
+
+def test_unreadable_text_is_reported_without_exposing_content(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    target = root / "settings.txt"
+    original = Path.read_text
+
+    def deny_target(path: Path, *args, **kwargs):
+        if path == target:
+            raise PermissionError("private details")
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", deny_target)
+    result = audit_module.audit(root)
+    assert any(item["code"] == "unreadable-text" and item["path"] == "settings.txt" for item in result["findings"])
+    assert "private details" not in audit_module.render_text(result)
+
+
+def test_invalid_utf8_text_is_not_silently_skipped(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    (root / "invalid.txt").write_bytes(b"\xff\xfe")
+    git(root, "add", "invalid.txt")
+    result = audit_module.audit(root)
+    assert any(item["code"] == "unreadable-text" and item["path"] == "invalid.txt" for item in result["findings"])

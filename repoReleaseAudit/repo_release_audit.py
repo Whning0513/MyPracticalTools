@@ -82,6 +82,7 @@ def scan_text(path: Path, relative: str, findings: list[Finding]) -> None:
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
+        findings.append(Finding("error", "unreadable-text", relative))
         return
     for line_number, line in enumerate(text.splitlines(), start=1):
         for name, pattern in SECRET_PATTERNS.items():
