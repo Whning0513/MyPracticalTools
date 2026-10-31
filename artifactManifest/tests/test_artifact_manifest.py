@@ -211,3 +211,13 @@ def test_invalid_utf8_manifest_reports_error_without_traceback(tmp_path: Path, c
     captured = capsys.readouterr()
     assert "cannot read manifest" in captured.err
     assert "Traceback" not in captured.err
+
+
+@pytest.mark.parametrize("version", [True, 1.0, "1", None])
+def test_schema_version_requires_integer(tmp_path: Path, version: object) -> None:
+    root = tmp_path / "artifact"
+    root.mkdir()
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"schema_version": version, "root": ".", "files": []}), encoding="utf-8")
+    with pytest.raises(artifact_manifest.ManifestError, match="unsupported schema_version"):
+        artifact_manifest.verify_manifest(root, manifest)
