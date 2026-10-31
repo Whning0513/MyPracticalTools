@@ -217,7 +217,7 @@ def _load_expected(manifest_path: Path) -> dict[str, ManifestFile]:
         raise ManifestError(f"cannot read manifest {manifest_path}: {exc}") from exc
     if not isinstance(payload, dict):
         raise ManifestError("manifest must contain a JSON object")
-    if payload.get("schema_version") != SCHEMA_VERSION:
+    if type(payload.get("schema_version")) is not int or payload["schema_version"] != SCHEMA_VERSION:
         raise ManifestError(
             f"unsupported schema_version: {payload.get('schema_version')!r}"
         )
