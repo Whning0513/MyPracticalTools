@@ -217,8 +217,6 @@ def audit_source(path: Path, label: str, result: AuditResult) -> SourceStats:
         with handle:
             for line in handle:
                 stats.records += 1
-                if '"response_item"' not in line and '"session_meta"' not in line:
-                    continue
                 try:
                     record = json.loads(line)
                 except json.JSONDecodeError:
@@ -226,6 +224,8 @@ def audit_source(path: Path, label: str, result: AuditResult) -> SourceStats:
                     continue
                 if not isinstance(record, dict):
                     stats.malformed_records += 1
+                    continue
+                if record.get("type") not in {"response_item", "session_meta"}:
                     continue
                 update_timestamp(result, record.get("timestamp"))
                 payload = record.get("payload")

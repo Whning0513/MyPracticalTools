@@ -198,3 +198,14 @@ def test_invalid_timestamp_does_not_leak_into_report(tmp_path: Path) -> None:
     assert result["summary"]["first_timestamp"] == "2026-10-31T00:00:00Z"
     assert result["summary"]["last_timestamp"] == "2026-10-31T00:00:00Z"
     assert "sensitive-invalid-timestamp" not in json.dumps(result)
+
+
+def test_all_jsonl_records_are_validated_before_type_filter(tmp_path: Path) -> None:
+    session = tmp_path / "sessions" / "one.jsonl"
+    session.parent.mkdir(parents=True)
+    other = {"type": "event_msg", "payload": {"type": "message", "role": "user", "text": "response_item"}}
+    session.write_text("{broken json\n" + json.dumps(other) + "\n", encoding="utf-8")
+    result = audit_module.audit([tmp_path]).to_dict()
+    assert result["summary"]["records"] == 2
+    assert result["summary"]["malformed_records"] == 1
+    assert result["summary"]["user_messages"] == 0
