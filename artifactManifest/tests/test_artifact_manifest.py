@@ -234,3 +234,20 @@ def test_manifest_rejects_duplicate_json_keys(tmp_path: Path, content: str) -> N
     manifest.write_text(content, encoding="utf-8")
     with pytest.raises(artifact_manifest.ManifestError, match="duplicate JSON key"):
         artifact_manifest.verify_manifest(root, manifest)
+
+
+def test_failed_manifest_replace_preserves_previous_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = tmp_path / "artifact"
+    root.mkdir()
+    (root / "data.txt").write_text("new data", encoding="utf-8")
+    output = tmp_path / "manifest.json"
+    output.write_text("previous manifest", encoding="utf-8")
+
+    def fail_replace(src, dst):
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr(artifact_manifest.os, "replace", fail_replace)
+    with pytest.raises(OSError, match="simulated replace failure"):
+        artifact_manifest.create_manifest(root, output)
+    assert output.read_text(encoding="utf-8") == "previous manifest"
+    assert list(tmp_path.glob(".manifest.json.*.tmp")) == []
