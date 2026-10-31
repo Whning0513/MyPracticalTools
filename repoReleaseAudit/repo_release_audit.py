@@ -137,6 +137,9 @@ def audit(root: Path, max_file_mb: float = 50.0, strict: bool = False) -> dict[s
     github_limit = 100 * 1024 * 1024
     total_bytes = 0
     for relative, path in files:
+        if any(parent.is_symlink() for parent in path.parents if parent != root and root in parent.parents):
+            findings.append(Finding("error", "symlink-ancestor", relative))
+            continue
         try:
             metadata = path.lstat()
             is_symlink = modes.get(relative) == "120000" or stat.S_ISLNK(metadata.st_mode)

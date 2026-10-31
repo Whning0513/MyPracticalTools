@@ -235,3 +235,41 @@ def test_unstaged_symlink_does_not_read_outside_target(tmp_path: Path) -> None:
     result = audit_module.audit(root)
     assert any(item["code"] == "symlink" and item["path"] == "settings.txt" for item in result["findings"])
     assert not any(item["code"] == "secret-pattern" and item["path"] == "settings.txt" for item in result["findings"])
+
+
+def test_symlinked_ancestor_is_not_scanned(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    directory = root / "nested"
+    directory.mkdir()
+    target = directory / "tracked.txt"
+    target.write_text("ghp_" + "b" * 24, encoding="utf-8")
+    git(root, "add", "nested/tracked.txt")
+    original = Path.is_symlink
+    monkeypatch.setattr(Path, "is_symlink", lambda path: path == directory or original(path))
+    result = audit_module.audit(root)
+    assert any(item["code"] == "symlink-ancestor" and item["path"] == "nested/tracked.txt" for item in result["findings"])
+    assert not any(item["code"] == "secret-pattern" and item["path"] == "nested/tracked.txt" for item in result["findings"])
+
+
+def test_real_ancestor_symlink_is_not_followed(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    directory = root / "nested"
+    directory.mkdir()
+    target = directory / "tracked.txt"
+    target.write_text("safe", encoding="utf-8")
+    git(root, "add", "nested/tracked.txt")
+    target.unlink()
+    directory.rmdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "tracked.txt").write_text("ghp_" + "c" * 24, encoding="utf-8")
+    try:
+        directory.symlink_to(outside, target_is_directory=True)
+    except OSError as error:
+        import pytest
+        pytest.skip(f"symlinks unavailable: {error}")
+    result = audit_module.audit(root)
+    assert any(item["code"] == "symlink-ancestor" and item["path"] == "nested/tracked.txt" for item in result["findings"])
+    assert not any(item["code"] == "secret-pattern" and item["path"] == "nested/tracked.txt" for item in result["findings"])
