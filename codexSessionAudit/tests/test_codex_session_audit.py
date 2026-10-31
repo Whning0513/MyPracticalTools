@@ -209,3 +209,15 @@ def test_all_jsonl_records_are_validated_before_type_filter(tmp_path: Path) -> N
     assert result["summary"]["records"] == 2
     assert result["summary"]["malformed_records"] == 1
     assert result["summary"]["user_messages"] == 0
+
+
+def test_disappearing_session_does_not_abort_audit(tmp_path: Path, monkeypatch) -> None:
+    session = tmp_path / "sessions" / "one.jsonl"
+    write_session(session)
+    missing = tmp_path / "sessions" / "gone.jsonl"
+    original_discover = audit_module.discover_files
+    monkeypatch.setattr(audit_module, "discover_files", lambda root: [missing, *original_discover(root)])
+    result = audit_module.audit([tmp_path]).to_dict()
+    assert result["summary"]["sessions"] == 2
+    assert result["summary"]["malformed_records"] == 1
+    assert result["summary"]["user_messages"] == 1
