@@ -10,6 +10,7 @@ import os
 import re
 import stat
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Sequence
@@ -193,9 +194,20 @@ def create_manifest(
         "files": [item.as_dict() for item in files],
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=output_path.parent,
+            prefix=f".{output_path.name}.", suffix=".tmp", delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            temporary.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+        if output_path.exists():
+            os.chmod(temporary_path, stat.S_IMODE(output_path.stat().st_mode))
+        os.replace(temporary_path, output_path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
     return payload
 
 
