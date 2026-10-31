@@ -77,7 +77,10 @@ def is_text_candidate(path: Path) -> bool:
 
 
 def scan_text(path: Path, relative: str, findings: list[Finding]) -> None:
-    if not is_text_candidate(path) or path.stat().st_size > 2 * 1024 * 1024:
+    if not is_text_candidate(path):
+        return
+    if path.stat().st_size > 2 * 1024 * 1024:
+        findings.append(Finding("error", "text-too-large-to-scan", relative))
         return
     try:
         text = path.read_text(encoding="utf-8")

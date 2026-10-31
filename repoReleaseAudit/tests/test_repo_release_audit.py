@@ -184,3 +184,12 @@ def test_git_status_failure_is_not_reported_as_clean(tmp_path: Path, monkeypatch
     assert result["summary"]["dirty"] is True
     assert any(item["code"] == "git-status-failed" and item["level"] == "error" for item in result["findings"])
     assert "private git error" not in audit_module.render_text(result)
+
+
+def test_oversized_text_is_reported_as_not_scanned(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    init_repo(root)
+    (root / "large.txt").write_bytes(b"x" * (2 * 1024 * 1024 + 1))
+    git(root, "add", "large.txt")
+    result = audit_module.audit(root)
+    assert any(item["code"] == "text-too-large-to-scan" and item["path"] == "large.txt" and item["level"] == "error" for item in result["findings"])
